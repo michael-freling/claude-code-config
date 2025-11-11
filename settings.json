@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(gh extension:*)",
+      "Bash(gh act:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh release view:*)",
+      "Bash(go build:*)",
+      "Bash(go test:*)",
+      "Bash(go get:*)",
+      "Bash(go mod:*)",
+      "Bash(npm outdated)",
+      "Bash(npm test)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run test:*)"
+    ],
+    "deny": []
+  },
+  "alwaysThinkingEnabled": false
+}

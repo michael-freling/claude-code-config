@@ -1,0 +1,304 @@
+# Project Design Documentation
+
+> This file documents the coding standards, conventions, architecture, and best practices for this project.
+> It should be read by Claude Code before implementing any features.
+
+## Project Overview
+
+**Project Name**: [Project Name]
+
+**Description**: [Brief description of what this project does]
+
+**Primary Languages**: [e.g., TypeScript, Go, Protocol Buffers]
+
+**Frameworks**: [e.g., Next.js 14 (App Router), gRPC]
+
+**Key Dependencies**:
+- [Dependency 1] - [Purpose]
+- [Dependency 2] - [Purpose]
+
+## Directory Structure
+
+```
+project-root/
+├── [dir1]/          # [Purpose]
+├── [dir2]/          # [Purpose]
+└── [dir3]/          # [Purpose]
+```
+
+**Key Directories:**
+- `[directory]`: [Detailed explanation of purpose and what goes here]
+- `[directory]`: [Detailed explanation of purpose and what goes here]
+
+## Coding Standards
+
+### Naming Conventions
+
+**Files:**
+- [Convention for file names, e.g., kebab-case, PascalCase]
+- [Examples: user-service.ts, UserRepository.go]
+
+**Variables/Functions:**
+- [Convention, e.g., camelCase for variables, PascalCase for types]
+- [Examples from codebase]
+
+**Types/Interfaces:**
+- [Convention, e.g., PascalCase with I prefix or not]
+- [Examples from codebase]
+
+**Constants:**
+- [Convention, e.g., UPPER_SNAKE_CASE or const prefix]
+- [Examples from codebase]
+
+### Code Organization
+
+**Principle**: [e.g., Feature-based, Layer-based, Domain-driven]
+
+**Example Structure**:
+```
+[Show actual structure from the project]
+```
+
+**Co-location Rules**:
+- [What files should be grouped together]
+- [Examples: component.tsx, component.test.tsx, component.module.css]
+
+### Formatting
+
+**Tool**: [e.g., Prettier, gofmt, buf format]
+
+**Configuration**: [Location of config file or key settings]
+
+**Line Length**: [e.g., 100 characters]
+
+**Indentation**: [e.g., 2 spaces, tabs]
+
+## Architecture
+
+### Overall Pattern
+
+[e.g., Clean Architecture, Hexagonal, MVC, etc.]
+
+**Layers**:
+1. [Layer 1] - [Purpose and rules]
+2. [Layer 2] - [Purpose and rules]
+3. [Layer 3] - [Purpose and rules]
+
+**Dependency Rules**:
+- [e.g., Outer layers can depend on inner layers, not vice versa]
+- [Specific rules for this project]
+
+### Module Organization
+
+**Example**: [Show actual module/package structure]
+
+```
+[Code example from the project]
+```
+
+### Data Flow
+
+[Explain how data flows through the application]
+
+```
+[Diagram or description]
+User Request → [Component A] → [Component B] → [Database]
+```
+
+## Language-Specific Conventions
+
+### [Language 1, e.g., TypeScript]
+
+**Type Definitions**:
+- [Where types are defined]
+- [Preference for interface vs type]
+- [Examples from codebase]
+
+**Async Patterns**:
+- [async/await vs promises]
+- [Error handling in async code]
+- [Examples from codebase]
+
+**Import Style**:
+- [Absolute vs relative imports]
+- [Import ordering]
+- [Examples from codebase]
+
+### [Language 2, e.g., Go]
+
+**Interface Design**:
+- [Where interfaces are defined]
+- [Interface naming conventions]
+- [Examples from codebase]
+
+**Error Handling**:
+- [Error wrapping patterns]
+- [Custom error types]
+- [Examples from codebase]
+
+**Package Structure**:
+- [How packages are organized]
+- [What goes in internal/ vs pkg/]
+- [Examples from codebase]
+
+## Best Practices
+
+### Error Handling
+
+**Pattern**: [Describe the error handling approach]
+
+**Example**:
+```[language]
+// Example from actual codebase
+[Code showing error handling pattern]
+```
+
+**Custom Errors**:
+- [List custom error types used]
+- [When to use each]
+
+### Testing
+
+**Framework**: [e.g., Jest, Go testing, etc.]
+
+**Test Organization**:
+- [Where tests are located]
+- [Naming conventions for test files]
+- [Test structure pattern]
+
+**Example**:
+```[language]
+// Example test from codebase
+[Actual test code showing the pattern]
+```
+
+**Coverage Requirements**: [e.g., 80% coverage, all exported functions tested]
+
+### API Design
+
+**REST/gRPC Patterns**:
+- [Endpoint/RPC naming conventions]
+- [Request/Response structure]
+- [Versioning strategy]
+
+**Example**:
+```[language]
+// Example API endpoint/RPC from codebase
+[Actual code]
+```
+
+### State Management
+
+[For frontend projects]
+
+**Approach**: [e.g., React Context, Redux, Zustand]
+
+**Example**:
+```[language]
+// Example state management from codebase
+[Actual code]
+```
+
+### Database Access
+
+**ORM/Library**: [e.g., Prisma, GORM, raw SQL]
+
+**Patterns**:
+- [Repository pattern, active record, etc.]
+- [Transaction handling]
+- [Migration strategy]
+
+**Example**:
+```[language]
+// Example database access from codebase
+[Actual code]
+```
+
+## Code Examples
+
+### [Feature/Pattern 1]
+
+**Location**: [File path in codebase]
+
+**Purpose**: [What this demonstrates]
+
+```[language]
+// Actual code from the project
+[Code example]
+```
+
+### [Feature/Pattern 2]
+
+**Location**: [File path in codebase]
+
+**Purpose**: [What this demonstrates]
+
+```[language]
+// Actual code from the project
+[Code example]
+```
+
+## Build and Development
+
+### Commands
+
+**Development**:
+```bash
+[Command to run dev server]
+```
+
+**Build**:
+```bash
+[Command to build]
+```
+
+**Test**:
+```bash
+[Command to run tests]
+```
+
+**Lint**:
+```bash
+[Command to run linter]
+```
+
+**Format**:
+```bash
+[Command to format code]
+```
+
+### Pre-commit Checks
+
+[List any pre-commit hooks or checks that must pass]
+
+## Common Utilities
+
+[List common utility functions, helpers, or libraries used across the project]
+
+**Location**: [Where utilities are defined]
+
+**Examples**:
+- `[utilityFunction1]`: [Purpose and usage]
+- `[utilityFunction2]`: [Purpose and usage]
+
+## Anti-Patterns
+
+[List things to avoid in this codebase]
+
+**Don't**:
+- [Anti-pattern 1] - [Why it's avoided]
+- [Anti-pattern 2] - [Why it's avoided]
+
+**Instead, do**:
+- [Preferred pattern]
+
+## References
+
+- [Link to architecture decision records]
+- [Link to API documentation]
+- [Link to other relevant docs]
+
+---
+
+**Last Updated**: [Date]
+**Updated By**: [Who/What updated this]
