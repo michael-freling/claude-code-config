@@ -1,0 +1,8 @@
+*
+!.gitignore
+!LICENSE
+!CLAUDE.md
+!settings.json
+!commands/*
+!skills/*
+!templates/*
