@@ -69,10 +69,13 @@ After foundation changes are complete, update dependent subprojects:
 - Update TodoWrite as each step completes
 
 **For each subproject Task agent, provide detailed instructions to:**
+
+**CRITICAL: Each agent MUST ensure all quality checks pass before returning.**
+
 1. Invoke appropriate skill(s) using the Skill tool:
-   - `golang` for Go projects
-   - `typescript` for TypeScript projects
-   - `nextjs` for Next.js applications
+   - `golang` for Go projects - skill ensures tests and lints pass
+   - `typescript` for TypeScript projects - skill ensures tests and lints pass
+   - `nextjs` for Next.js applications - skill ensures tests and build pass
    - `protobuf` for Protocol Buffer files
    - Others as applicable
 
@@ -83,13 +86,25 @@ After foundation changes are complete, update dependent subprojects:
    - Configuration: Update settings, build configs, or dependencies
    - Dependencies: Update package versions and handle breaking changes
 
-3. Run appropriate verification:
-   - Tests: `make test`, `npm test`, `pytest`, etc.
-   - Linting: `make lint`, `npm run lint`, etc.
-   - Build: `make build`, `npm run build`, etc.
-   - Type checking: `tsc`, `mypy`, etc.
+3. **MANDATORY: Fix all issues until checks pass**
 
-4. Return a summary of changes made
+   The skill will guide the agent through verification, but the agent MUST:
+   - Run all quality checks (tests, lints, builds, type checks)
+   - Fix any failures immediately
+   - Iterate until ALL checks pass
+   - Update tests if implementing new features or fixing bugs
+
+   **DO NOT return until:**
+   - ✅ All tests pass
+   - ✅ All lints pass
+   - ✅ Build succeeds
+   - ✅ Type checking passes (for typed languages)
+   - ✅ No errors or warnings
+
+4. Return a summary of changes made and verification results
+   - List files modified
+   - Confirm all checks passed
+   - Note any issues encountered and how they were resolved
 
 **Key Points:**
 - Use parallel Task agents when possible to improve efficiency
@@ -102,25 +117,34 @@ After foundation changes are complete, update dependent subprojects:
 
 After all subproject changes are complete:
 
-1. **Verify integration** between changed subprojects:
+1. **Verify all quality checks passed** in each subproject:
+   - Confirm all tests passed
+   - Confirm all lints passed
+   - Confirm all builds succeeded
+   - Confirm type checking passed
+   - If any failed, go back and fix them
+
+2. **Verify integration** between changed subprojects:
    - Do API contracts match between services?
    - Are shared types/schemas consistent?
    - Do configuration changes work across projects?
 
-2. **Review code quality**:
+3. **Review code quality**:
    - Launch Task agents to review changes if needed
    - Check for security issues
    - Verify test coverage
    - Ensure documentation is updated
 
-3. **Run integration tests** if available:
+4. **Run integration tests** if available:
    - End-to-end tests
    - Integration test suites
    - Manual testing instructions for the user
 
-4. **Provide a final summary**:
+5. **Provide a final summary**:
    - List all changed files by subproject
+   - **Explicitly confirm all quality checks passed** (tests, lints, builds)
    - Highlight important changes or breaking changes
+   - Note any issues encountered and how they were resolved
    - Note any manual steps needed
    - Suggest next steps (e.g., creating a PR, deploying)
 
@@ -201,8 +225,16 @@ Different types of changes may require different approaches:
 
 ## Success Criteria
 
+**ALL of these must be true before completing the task:**
+
 - ✅ All affected subprojects updated with appropriate skills
-- ✅ All tests pass in each subproject
+- ✅ **All tests pass in each subproject** (MANDATORY)
+- ✅ **All lints pass in each subproject** (MANDATORY)
+- ✅ **All builds succeed in each subproject** (MANDATORY)
+- ✅ **All type checks pass in typed languages** (MANDATORY)
+- ✅ **Tests updated for new or modified code** (MANDATORY)
 - ✅ Integration between subprojects verified
 - ✅ Changes reviewed for quality, security, and consistency
 - ✅ User receives comprehensive summary of all changes made
+
+**If any check fails, you MUST fix it before considering the task complete.**
