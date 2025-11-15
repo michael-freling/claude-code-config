@@ -4,5 +4,6 @@
 !CLAUDE.md
 !settings.json
 !commands/*
-!skills/*
+!skills/
+!skills/**
 !templates/*

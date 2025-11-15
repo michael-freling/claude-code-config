@@ -108,6 +108,45 @@ Automatically activated when working with Protocol Buffer files (.proto).
 - Common patterns (pagination, errors, resource names)
 - Field numbering best practices
 
+### github-actions
+
+Automatically activated when creating or updating GitHub Actions workflows.
+
+**Provides guidance on:**
+- Workflow structure and organization
+- Testing workflows locally with `gh act` before pushing
+- Job design with matrix strategies and parallelization
+- Security best practices (secrets, permissions)
+- Caching and optimization
+- Reusable workflows and composite actions
+- Error handling and notifications
+
+**MCP Server Enhancement (Recommended):**
+
+Install the GitHub MCP server for enhanced capabilities:
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your_token_here"
+      }
+    }
+  }
+}
+```
+
+With the MCP server, Claude Code can:
+- Read and analyze existing workflows from repositories
+- View workflow run history and logs for debugging
+- Access repository information (branches, commits, PRs)
+- Provide more context-aware workflow suggestions
+
+See the github-actions skill documentation for detailed setup instructions.
+
 ## Creating Your Own Skills
 
 To create a new skill:

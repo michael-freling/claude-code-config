@@ -26,5 +26,5 @@
     ],
     "deny": []
   },
-  "alwaysThinkingEnabled": false
+  "alwaysThinkingEnabled": true
 }
