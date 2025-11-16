@@ -1,11 +1,12 @@
 ---
 name: protobuf
-description: Protocol Buffers (protobuf) development following best practices for message design, service definitions, versioning, field numbering, and backward compatibility. Use when adding or updating .proto files.
+allowed-tools: Read, Write, Edit, Grep, Glob, Bash
+description: Protocol Buffers (protobuf) development following Google's official style guide and best practices for message design, service definitions, versioning, field numbering, and backward compatibility. Emphasizes simplicity, DRY principles, fail-fast error handling, and consistent code patterns. Use when adding or updating .proto files.
 ---
 
 # Protocol Buffers Development Skill
 
-A comprehensive skill for adding or updating Protocol Buffers definitions following best practices.
+A comprehensive skill for adding or updating Protocol Buffers definitions following Google's official style guide and industry best practices.
 
 ## When to Use
 
@@ -62,15 +63,94 @@ Before starting any implementation:
 - Identify field naming conventions
 - Check versioning patterns (v1, v2, etc.)
 
+## Core Principles
+
+1. **Simplicity First**: Follow DRY (Don't Repeat Yourself) - reuse existing messages and patterns rather than creating new ones
+2. **Backward Compatibility**: Design for evolution - clients and servers are never updated simultaneously
+3. **Fail-Fast**: Use validation and type safety to catch errors early rather than silently failing
+4. **Consistency**: Follow Google's official style guide and project-specific conventions
+5. **Latest Versions**: Use proto3 syntax and well-known types from the latest Protocol Buffers release
+6. **Encapsulation**: Keep message definitions focused and avoid exposing internal implementation details
+
+## File Structure and Formatting
+
+Following Google's official style guide:
+
+**File Naming**: Use `lower_snake_case.proto`
+
+**File Structure Order**:
+1. License header (if applicable)
+2. File overview comment
+3. Syntax declaration (`syntax = "proto3";`)
+4. Package statement
+5. Imports (sorted alphabetically)
+6. File options (go_package, java_package, etc.)
+7. Messages, enums, and services
+
+**Formatting**:
+- Maximum line length: 80 characters
+- Indentation: 2 spaces
+- String quotes: Double quotes preferred
+- Comments: Use `//` for all comments, add documentation for all public elements
+
+Example of proper file structure:
+```protobuf
+// Copyright 2025 Example Inc.
+// Licensed under Apache 2.0
+
+// User service API definitions for managing user accounts and profiles.
+syntax = "proto3";
+
+package user.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/example/api/user/v1;userv1";
+option java_package = "com.example.api.user.v1";
+option java_outer_classname = "UserProto";
+
+// User represents a user account in the system.
+message User {
+  // ... message definition
+}
+```
+
+## Naming Conventions (Google Style Guide)
+
+| Component | Style | Example |
+|-----------|-------|---------|
+| Files | `lower_snake_case.proto` | `user_service.proto` |
+| Packages | dot-delimited `lower_snake_case` | `user.v1`, `my.package.name` |
+| Messages | `TitleCase` | `UserProfile`, `CreateUserRequest` |
+| Fields | `lower_snake_case`, plural for repeated | `user_name`, `repeated email_addresses` |
+| Oneofs | `lower_snake_case` | `auth_method`, `notification_type` |
+| Enums | `TitleCase` | `UserRole`, `OrderStatus` |
+| Enum values | `UPPER_SNAKE_CASE` with prefix | `USER_ROLE_UNSPECIFIED`, `ORDER_STATUS_PENDING` |
+| Services | `TitleCase` with `Service` suffix | `UserService`, `OrderService` |
+| RPC methods | `TitleCase`, action-oriented | `GetUser`, `CreateOrder`, `ListProducts` |
+
+**Important Underscore Rules**:
+- NEVER use underscores as initial or final characters
+- Underscores must be followed by letters (not numbers or additional underscores)
+- Treat abbreviations as single words: `GetDnsRequest` (not `GetDNSRequest`), `dns_request` (not `d_n_s_request`)
+
 ## Protocol Buffers Best Practices
 
 ### Message Design
 
-- Use singular for non-repeated fields
-- Use plural for repeated fields
-- Reserve field numbers for deleted fields
-- Keep messages focused and composable
-- Always add comments
+**Core Guidelines**:
+- Use singular names for non-repeated fields
+- Use plural names for repeated fields
+- Always reserve field numbers for deleted fields
+- Keep messages focused and composable (avoid hundreds of fields)
+- Add comprehensive comments to all messages and fields
+- Define one message per concern - split large messages into smaller, composable ones
+- Use well-known types (`google.protobuf.Timestamp`, `Duration`, `FieldMask`, etc.) instead of custom implementations
+- Avoid boolean fields for concepts that might expand to multiple states - use enums instead
+
+**Field Encapsulation**:
+- Don't expose internal implementation details in public APIs
+- Use separate messages for API and storage to enable independent evolution
 
 Example:
 ```protobuf
@@ -145,13 +225,32 @@ message CreateUserResponse {
 }
 ```
 
-### Versioning and Evolution
+### Versioning and Evolution (CRITICAL)
 
-- Never change field numbers
-- Never change field types
-- Mark deprecated fields with [deprecated = true]
-- Use reserved for removed fields
-- Version your packages (v1, v2, etc.)
+**NEVER Do These (Breaking Changes)**:
+- ❌ NEVER re-use a field number (even from deleted fields) - breaks deserialization completely
+- ❌ NEVER change field types (with rare exceptions: int32/uint32/int64/bool are compatible)
+- ❌ NEVER add required fields - use optional with `// required` comments instead
+- ❌ NEVER change default values - causes inconsistencies across versions
+- ❌ NEVER convert between repeated and scalar fields - loses data
+- ❌ NEVER re-use enum value numbers
+- ❌ NEVER change numeric values of existing enum entries
+
+**Always Do (Safe Changes)**:
+- ✅ ALWAYS reserve field numbers AND names when deleting fields
+- ✅ ALWAYS reserve enum value numbers when deprecating them
+- ✅ ALWAYS mark deprecated fields with `[deprecated = true]` before removing
+- ✅ ALWAYS version your packages (v1, v2, etc.) for major API changes
+- ✅ ALWAYS add new enum values at the end (after deprecated ones)
+- ✅ ALWAYS include backward-compatible changes only
+- ✅ Fields can be renamed safely (names don't appear in binary serialization)
+- ✅ New fields can be added (ensure clients handle unknown fields gracefully)
+
+**Versioning Strategy**:
+- Use package versioning (e.g., `package user.v1`, `package user.v2`) for major changes
+- Keep old versions available during migration periods
+- Update server schemas first, then gradually update clients
+- Design for forward and backward compatibility - clients and servers are NEVER updated simultaneously
 
 Example:
 ```protobuf
@@ -292,12 +391,72 @@ message EmailNotification {
 }
 ```
 
+### Enum Design
+
+**Critical Enum Rules**:
+- ALWAYS include a zero-value default with `_UNSPECIFIED` or `_UNKNOWN` suffix
+- Prefix ALL enum values with the enum name in `UPPER_SNAKE_CASE` (prevents collisions)
+- Zero value MUST be first in the declaration
+- Add new values at the END (after any deprecated values)
+- NEVER change numeric values of existing entries
+- Reserve numbers when deprecating enum values
+- Avoid C/C++ reserved keywords (NULL, NAN, etc.)
+- Consider nesting enums inside messages for better scoping
+
+Example:
+```protobuf
+// Good: Properly defined enum with zero value and prefixes
+enum OrderStatus {
+  // Zero value - required for proto3 default
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_PENDING = 1;
+  ORDER_STATUS_CONFIRMED = 2;
+  ORDER_STATUS_SHIPPED = 3;
+  ORDER_STATUS_DELIVERED = 4;
+
+  // Deprecated value - kept for compatibility
+  ORDER_STATUS_PROCESSING = 5 [deprecated = true];
+
+  // Reserved for removed values
+  reserved 6, 7;
+  reserved "ORDER_STATUS_CANCELLED_OLD";
+}
+
+// Bad: Missing zero value, no prefixes
+enum Status {
+  ACTIVE = 1;  // ❌ No zero value!
+  INACTIVE = 2;  // ❌ No prefix - risk of collisions
+}
+
+// Good: Nested enum for better scoping
+message Order {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_PENDING = 1;
+    STATUS_CONFIRMED = 2;
+  }
+
+  Status status = 1;
+}
+```
+
 ### Field Numbering Best Practices
 
-- Use 1-15 for frequently used fields (more efficient encoding)
-- Group related fields (1-10 for core, 10-20 for metadata, etc.)
-- Leave gaps for future expansion
-- Reserve deleted field numbers
+**Field Number Rules**:
+- Use 1-15 for frequently used fields (most efficient encoding - 1 byte)
+- Use 16-2047 for less frequent fields (2 bytes)
+- Group related fields logically (e.g., 1-10 core, 11-20 metadata, 21-30 audit)
+- Leave gaps between groups for future expansion
+- NEVER re-use deleted field numbers - always reserve them
+- Field numbers 19000-19999 are reserved by Protocol Buffers
+
+**Efficient Field Numbering Strategy**:
+```
+1-15:    Core/frequently accessed fields (1-byte encoding)
+16-50:   Common optional fields
+51-100:  Extended fields
+100+:    Rarely used or future expansion
+```
 
 Example:
 ```protobuf
@@ -352,21 +511,60 @@ message User {
 - Check for breaking changes
 - Update documentation
 
-## Commands
+## Serialization and Interchange
+
+**Best Practices**:
+- ✅ Use binary serialization for data interchange (most efficient and stable)
+- ❌ NEVER use text format (JSON, text proto) for long-term storage or interchange
+- ❌ NEVER rely on serialization stability across builds for cache keys
+- ✅ Use different messages for API contracts vs. storage schemas
+- ✅ Separate client-facing messages from internal storage to enable independent evolution
+
+**Why Avoid Text Formats for Interchange**:
+- Text formats break when fields or enums are renamed
+- Binary format is stable and handles unknown fields gracefully
+- Significantly better performance and smaller size
+
+## Language-Specific Options
+
+**Java**:
+```protobuf
+option java_package = "com.example.api.user.v1";
+option java_outer_classname = "UserProto";  // TitleCase of filename
+option java_multiple_files = true;  // Separate class per message
+```
+
+**Go**:
+```protobuf
+option go_package = "github.com/example/api/user/v1;userv1";
+```
+
+**Guidelines**:
+- Keep generated code in separate packages from hand-written code
+- Derive java_package from proto package to avoid collisions
+- Use java_outer_classname to convert filename to TitleCase
+- Avoid language keywords for field names (protobuf may rename them)
+
+## Commands and Validation
 
 ```bash
-# Using buf (recommended)
-buf lint
-buf format -w
-buf generate
-buf breaking --against '.git#branch=main'
+# Using buf (recommended for linting and breaking change detection)
+buf lint                                    # Lint proto files
+buf format -w                               # Format proto files
+buf generate                                # Generate code
+buf breaking --against '.git#branch=main'  # Check for breaking changes
 
 # Using protoc directly
 protoc --go_out=. --go-grpc_out=. api/**/*.proto
 
-# Validation
-buf lint
+# Validation workflow (fail-fast approach)
+buf lint && buf generate && buf breaking --against '.git#branch=main'
 ```
+
+**Recommended Tools**:
+- Use `buf` for modern protobuf workflows (linting, formatting, breaking change detection)
+- Consider `buf.build` for schema registry and dependency management
+- Use language-specific linters for generated code
 
 ## Common Pitfalls to Avoid
 
@@ -405,19 +603,68 @@ message User {
 }
 ```
 
+### Using Booleans for Multi-State Concepts
+```protobuf
+// Bad: Boolean that might need more states later
+message Feature {
+  bool enabled = 1;  // What if we need "partial" or "testing" mode?
+}
+
+// Good: Enum allows future expansion
+message Feature {
+  enum State {
+    STATE_UNSPECIFIED = 0;
+    STATE_DISABLED = 1;
+    STATE_ENABLED = 2;
+    // Easy to add: STATE_TESTING = 3, STATE_PARTIAL = 4
+  }
+  State state = 1;
+}
+```
+
 ### Missing Zero Values
 ```protobuf
 // Bad: No zero value
 enum Status {
-  ACTIVE = 1;
+  ACTIVE = 1;  // ❌ Clients receiving unknown values can't distinguish from unset
   INACTIVE = 2;
 }
 
 // Good: Zero value defined
 enum Status {
-  STATUS_UNSPECIFIED = 0;
+  STATUS_UNSPECIFIED = 0;  // ✅ Clear handling of unset/unknown values
   STATUS_ACTIVE = 1;
   STATUS_INACTIVE = 2;
+}
+```
+
+### Too Many Fields in One Message
+```protobuf
+// Bad: Hundreds of fields in one message
+message UserProfile {
+  string id = 1;
+  string name = 2;
+  // ... 200+ more fields
+  // This causes: memory bloat, hard to maintain, generated code size limits
+}
+
+// Good: Split into focused, composable messages
+message User {
+  string id = 1;
+  string name = 2;
+  ContactInfo contact = 3;
+  Preferences preferences = 4;
+}
+
+message ContactInfo {
+  string email = 1;
+  string phone = 2;
+  Address address = 3;
+}
+
+message Preferences {
+  string language = 1;
+  string timezone = 2;
 }
 ```
 
@@ -477,13 +724,41 @@ service UserService {
 - [ ] Update API documentation
 - [ ] Test with client/server implementations
 
-## Key Principles
+## Key Principles Summary
 
-1. **Project Guidelines First**: Always read and follow `.claude/design.md`
-2. **Backward Compatibility**: Never reuse field numbers or change types
-3. **Documentation**: Comment all messages, fields, and services
-4. **Versioning**: Use package versioning (v1, v2) for major changes
-5. **Zero Values**: Always define UNSPECIFIED (0) for enums
-6. **Separation**: Use separate Request/Response messages for each RPC
-7. **Well-Known Types**: Use google.protobuf types for common patterns
-8. **Field Numbering**: Group related fields and reserve deleted numbers
+1. **Project Guidelines First**: Always read and follow `.claude/design.md` (MANDATORY)
+2. **Simplicity & DRY**: Reuse existing messages and patterns; avoid creating redundant definitions
+3. **Backward Compatibility**: NEVER reuse field numbers or change types; design for evolution
+4. **Fail-Fast**: Use validation, type safety, and strict linting to catch errors early
+5. **Google Style Guide**: Follow official naming conventions and file structure
+6. **Latest Versions**: Use proto3 syntax and latest well-known types
+7. **Zero Values**: Always define UNSPECIFIED (0) as first enum value
+8. **Separation**: Use separate Request/Response messages for each RPC; separate API from storage
+9. **Well-Known Types**: Use google.protobuf types (Timestamp, Duration, etc.) for common patterns
+10. **Field Numbering**: Use 1-15 for frequent fields; group logically; reserve deleted numbers
+11. **Documentation**: Comment all public messages, fields, services, and RPCs
+12. **Encapsulation**: Keep messages focused; avoid exposing internal implementation details
+13. **Binary Serialization**: Use binary format for interchange; avoid text formats for storage
+
+## Version History
+
+### Version 2.0 (2025-01-16)
+- Added comprehensive Google Style Guide naming conventions (files, packages, messages, fields, enums, services)
+- Added Core Principles section emphasizing simplicity, DRY, fail-fast, and consistency
+- Enhanced versioning section with explicit NEVER/ALWAYS rules for backward compatibility
+- Added detailed enum design guidelines with zero-value requirements and prefixing rules
+- Expanded field numbering with encoding efficiency details (1-15 = 1 byte)
+- Added serialization best practices (binary vs text format)
+- Added language-specific options for Java and Go
+- Added new pitfall examples: booleans for multi-state, too many fields, etc.
+- Enhanced file structure section with proper ordering and formatting rules
+- Added underscore naming rules from official style guide
+- Improved commands section with buf tooling recommendations
+- Updated all examples to follow Google's official style guide
+- Aligned with coding-guideline.md principles: simplicity, DRY, fail-fast, latest versions, encapsulation
+
+### Version 1.0 (Initial)
+- Basic Protocol Buffers guidelines
+- Message design patterns
+- Service definitions
+- Field numbering basics

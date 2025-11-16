@@ -6,12 +6,14 @@ The commands and skills have to be created with following documents:
 
 ## General Claude Code's slash commands and skill guides
 
-1. Keep commands and skills instructions as simple, concise and brief as possible
-2. Create the slash commands of Claude Code by analyzing the usages and best practices on the Internet at first, including https://code.claude.com/docs/en/slash-commands
+1. Create the slash commands of Claude Code by analyzing the usages and best practices on the Internet at first, including https://code.claude.com/docs/en/slash-commands
     1. Add `$ARGUMENTS` or `$1`, `$2` for each parameter
     2. Add `allowed-tools`, `argument-hint`, and `description` for each slash command at least.
-3. Create the skills of Claude Code by analyzing the usages and best practices on the Internet at first, including https://code.claude.com/docs/en/skills
-4. Ask users to install all MCP servers that users should install on each slash command or skill.
+2. Create the skills of Claude Code by analyzing the usages and best practices on the Internet at first, including https://code.claude.com/docs/en/skills
+    1. Add `name`, `allowed-tools` and `description` frontmatter
+    2. Add `examples.md` for complex examples
+    3. Add `Version History`
+3. Ask users to install all MCP servers that users should install on each slash command or skill.
 
 
 ### Slash command: document-guideline
@@ -49,6 +51,7 @@ Create following claude code skills by software engineer agents on each language
 
 Each skill has to follow following rules
 - Create the skills of Claude Code by analyzing the usages and best practices on the Internet at first, including https://code.claude.com/docs/en/skills
+- Analyze best practices and coding guideline on the Internet and plan to include them on each language/framework.
 - Follow general coding guidelines and guidelines of corresponding language/framework below.
 - Include examples on each guideline when it helps an agent to remove unambiguity.
 - Review each skill and update based on feedback

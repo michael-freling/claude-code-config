@@ -5,7 +5,7 @@ description: TypeScript feature development following best practices for type sa
 
 # TypeScript Development Skill
 
-A comprehensive skill for adding or updating features in TypeScript projects following best practices.
+A comprehensive skill for adding or updating features in TypeScript projects following modern best practices, emphasizing type safety, simplicity, consistency, and robust testing.
 
 ## When to Use
 
@@ -61,18 +61,99 @@ Before starting any implementation:
 - Look for related utilities and helpers
 - Identify styling patterns
 
+## Core Principles
+
+### Simplicity First
+- **DRY (Don't Repeat Yourself)**: Always update existing code for reusability rather than creating new functions
+- **Prefer Breaking Changes**: Unless explicitly mentioned, prefer simplicity over backward compatibility
+- **Early Returns**: Use early returns and continue statements instead of nested conditionals
+- **Minimal Public API**: Keep functions and classes private/unexported unless explicitly needed for encapsulation
+
+### Consistency
+- Follow project-specific patterns from `.claude/design.md`
+- Match existing code style and naming conventions
+- Use consistent error handling patterns throughout
+
+### Fail-Fast
+- Validate inputs early and throw meaningful errors
+- Never silently swallow errors
+- Use type guards to ensure type safety at runtime
+
+### Latest Versions
+- Prefer latest versions of packages unless compatibility issues arise
+- If dependencies conflict, downgrade major version to maintain compatibility
+
 ## TypeScript Best Practices
+
+### Package Management
+**CRITICAL: Always use pnpm, never npm**
+
+```bash
+# Good: Use pnpm
+pnpm install
+pnpm add <package>
+pnpm update
+
+# Bad: Do NOT use npm
+npm install
+npm install --legacy-peer-deps  # NEVER use this option
+```
 
 ### Code Organization
 
-- Follow existing directory structure
-- Use barrel exports (index.ts) for clean imports
-- Separate concerns: types, utils, constants
+**Directory Structure Approaches:**
+
+1. **Feature-Based** (Recommended for medium-large apps):
+```
+src/
+  features/
+    auth/
+      components/
+      hooks/
+      types.ts
+      auth.service.ts
+      auth.test.ts
+    user/
+      components/
+      types.ts
+      user.service.ts
+      user.test.ts
+  shared/
+    components/
+    utils/
+    types/
+```
+
+2. **Type-Based** (For smaller projects):
+```
+src/
+  components/
+  services/
+  types/
+  utils/
+```
+
+3. **Hybrid Approach** (Balanced):
+```
+src/
+  components/
+  features/
+    auth/
+      types.ts
+      auth.service.ts
+  types/        # Shared types only
+  utils/
+```
+
+**File Organization Best Practices:**
 - Co-locate related files (file.ts, file.test.ts)
+- Use barrel exports (index.ts) sparingly, only for public API
+- Keep component-specific types in the same file or nearby
+- Use a shared types directory only for truly shared types
 
 Example:
 ```typescript
-// src/types/user.ts
+// src/features/user/types.ts
 export interface User {
   id: string;
   name: string;
@@ -88,23 +169,50 @@ export interface CreateUserDto {
   role: UserRole;
 }
 
-// src/types/index.ts (barrel export)
-export * from './user';
-export * from './product';
+// src/features/user/index.ts (barrel export for public API only)
+export { UserService } from './user.service';
+export type { User, UserRole, CreateUserDto } from './types';
 ```
 
 ### Type Safety
 
-- Define interfaces/types for all data structures
-- Use strict TypeScript settings (strict: true)
-- Prefer `interface` for object shapes, `type` for unions/intersections
-- Avoid `any`; use `unknown` for truly unknown types
-- Use generics for reusable type-safe functions
-- Leverage utility types (Partial, Pick, Omit, Record)
+**Strict Configuration (tsconfig.json):**
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "moduleResolution": "Bundler",  // For modern bundlers (Vite, ESBuild)
+    // or "NodeNext" for Node.js projects
+  }
+}
+```
+
+**Type System Best Practices:**
+- **Always enable strict mode**: `"strict": true` in tsconfig.json
+- **Avoid `any`**: Use `unknown` for truly unknown types (forces type checking before use)
+- **Prefer `interface` for object shapes**: More extensible, better for public APIs
+- **Prefer `type` for unions/intersections**: More flexible for complex type operations
+- **Use const assertions**: `as const` for literal types and immutable arrays
+- **Leverage utility types**: Built-in types like Partial, Pick, Omit, Record, Required
+- **Advanced types**: Template literal types, mapped types, conditional types
 
 Example:
 ```typescript
-// Good: Type-safe API response handler
+// Good: Avoid 'any', use 'unknown'
+function processData(data: unknown): string {
+  // Must narrow type before use
+  if (typeof data === 'string') {
+    return data.toUpperCase();
+  }
+  if (typeof data === 'object' && data !== null && 'toString' in data) {
+    return data.toString();
+  }
+  throw new Error('Invalid data type');
+}
+
+// Good: Type-safe API response handler with generics
 interface ApiResponse<T> {
   data: T;
   status: number;
@@ -123,18 +231,48 @@ async function fetchData<T>(url: string): Promise<ApiResponse<T>> {
 const userResponse = await fetchData<User>('/api/users/1');
 // userResponse.data is typed as User
 
-// Good: Use utility types
-type PartialUser = Partial<User>;
-type UserPreview = Pick<User, 'id' | 'name'>;
-type UserUpdate = Omit<User, 'id' | 'createdAt'>;
+// Good: Utility types for type transformations
+type PartialUser = Partial<User>;              // All properties optional
+type UserPreview = Pick<User, 'id' | 'name'>;  // Only specific properties
+type UserUpdate = Omit<User, 'id' | 'createdAt'>; // Exclude specific properties
+type UserRecord = Record<string, User>;         // Dictionary type
+
+// Good: Template literal types for type-safe strings
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+type ApiEndpoint = `/api/${string}`;
+type HttpUrl = `http${'s' | ''}://${string}`;
+
+// Good: Mapped types for transformations
+type Readonly<T> = {
+  readonly [P in keyof T]: T[P];
+};
+
+type Nullable<T> = {
+  [P in keyof T]: T[P] | null;
+};
+
+// Good: Conditional types for dynamic type assignments
+type IsString<T> = T extends string ? true : false;
+type NonNullable<T> = T extends null | undefined ? never : T;
+
+// Good: Const assertions for immutable literal types
+const ROLES = ['admin', 'user', 'guest'] as const;
+type Role = typeof ROLES[number]; // 'admin' | 'user' | 'guest'
+
+const CONFIG = {
+  apiUrl: 'https://api.example.com',
+  timeout: 5000,
+} as const;
+// CONFIG properties are readonly and have literal types
 ```
 
 ### Function Patterns
 
-- Use arrow functions for inline callbacks
-- Use function declarations for top-level functions
-- Explicit return types for public APIs
-- Use async/await over raw promises
+- **Arrow functions** for inline callbacks and short functions
+- **Function declarations** for top-level exported functions
+- **Explicit return types** for all exported functions (public APIs)
+- **async/await** over raw promises for better readability
+- **Early returns** to reduce nesting (fail-fast principle)
 
 Example:
 ```typescript
@@ -143,27 +281,69 @@ export function calculateTotal(items: CartItem[]): number {
   return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 }
 
-// Good: Async/await with proper error handling
-export async function getUserById(id: string): Promise<User | null> {
-  try {
-    const response = await fetchData<User>(`/api/users/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('Failed to fetch user:', error);
-    return null;
+// Good: Early returns instead of nested conditions
+export function getUserRole(user: User | null): UserRole {
+  if (!user) {
+    return 'guest';
   }
+
+  if (user.isAdmin) {
+    return 'admin';
+  }
+
+  return 'user';
+}
+
+// Bad: Nested conditions
+export function getUserRole(user: User | null): UserRole {
+  if (user) {
+    if (user.isAdmin) {
+      return 'admin';
+    } else {
+      return 'user';
+    }
+  } else {
+    return 'guest';
+  }
+}
+
+// Good: Async/await with proper error handling and fail-fast
+export async function getUserById(id: string): Promise<User> {
+  if (!id) {
+    throw new ValidationError('User ID is required', 'id', id);
+  }
+
+  const response = await fetchData<User>(`/api/users/${id}`);
+  if (!response.data) {
+    throw new NotFoundError('User', id);
+  }
+
+  return response.data;
+}
+
+// Good: Type inference for simple arrow functions
+const double = (n: number) => n * 2;
+const greet = (name: string) => `Hello, ${name}`;
+
+// Good: Dynamic imports for code splitting
+export async function loadUserModule(): Promise<typeof import('./user')> {
+  return import('./user');
 }
 ```
 
 ### Error Handling
 
-- Create custom error classes for specific error types
-- Use type guards for error handling
-- Provide meaningful error messages
+**Fail-Fast Principle: NEVER silently swallow errors**
+
+- **Create custom error classes** for specific error types
+- **Use type guards** for safe error handling
+- **Provide meaningful error messages** with context
+- **Validate inputs early** and throw errors immediately
+- **Never use empty catch blocks** or silent error handling
 
 Example:
 ```typescript
-// Good: Custom error classes
+// Good: Custom error classes with context
 export class ValidationError extends Error {
   constructor(
     message: string,
@@ -182,19 +362,81 @@ export class NotFoundError extends Error {
   }
 }
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number,
+    public endpoint: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 // Good: Type guard for error handling
 function isValidationError(error: unknown): error is ValidationError {
   return error instanceof ValidationError;
 }
 
-try {
-  await createUser(data);
-} catch (error) {
-  if (isValidationError(error)) {
-    console.error(`Validation failed for ${error.field}`);
-  } else if (error instanceof Error) {
-    console.error(error.message);
+function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
+// Good: Proper error handling with type guards
+async function createUser(data: CreateUserDto): Promise<User> {
+  try {
+    return await userService.create(data);
+  } catch (error) {
+    if (isValidationError(error)) {
+      console.error(`Validation failed for ${error.field}: ${error.value}`);
+      throw error; // Re-throw, don't swallow
+    }
+    if (isApiError(error)) {
+      console.error(`API error at ${error.endpoint}: ${error.statusCode}`);
+      throw error;
+    }
+    if (error instanceof Error) {
+      console.error('Unexpected error:', error.message);
+      throw error;
+    }
+    // Handle unknown errors
+    throw new Error('An unknown error occurred');
   }
+}
+
+// Bad: Silently swallowing errors
+try {
+  await saveUser(user);
+} catch (e) {
+  console.log('error'); // Don't do this!
+}
+
+// Bad: Returning null instead of throwing
+async function getUser(id: string): Promise<User | null> {
+  try {
+    return await fetchUser(id);
+  } catch (error) {
+    return null; // Loses error context
+  }
+}
+
+// Good: Fail-fast with early validation
+export function processOrder(order: Order): ProcessedOrder {
+  if (!order) {
+    throw new ValidationError('Order is required', 'order', order);
+  }
+  if (!order.items || order.items.length === 0) {
+    throw new ValidationError('Order must have items', 'items', order.items);
+  }
+  if (order.total <= 0) {
+    throw new ValidationError('Order total must be positive', 'total', order.total);
+  }
+
+  // Process order only after validation
+  return {
+    ...order,
+    processedAt: new Date(),
+  };
 }
 ```
 
@@ -202,18 +444,34 @@ try {
 
 **CRITICAL: Always use table-driven tests (test.each) as the primary testing approach.**
 
-Table-driven tests in TypeScript/Jest provide the same benefits as in other languages:
-- Reduce code duplication
-- Make it easy to add new test cases
-- Improve test readability
-- Ensure consistent test structure
-- Make test coverage gaps obvious
+Table-driven testing is a strategy that encourages reuse of test logic by defining test cases as array entries with inputs and expected results, then executing them against a single generic test function.
+
+**Benefits:**
+- **Reduce code duplication**: Write test logic once, reuse for all cases
+- **Improve maintainability**: New scenarios simply append to the cases array
+- **Enhance readability**: Immediately clear what inputs/outputs are tested
+- **Ensure consistency**: All test cases follow the same structure
+- **Make gaps obvious**: Missing test cases are easy to spot
+- **Type safety**: TypeScript ensures test case data matches expected types
 
 **Use table-driven tests for:**
-- All functions with multiple test cases
+- All functions with multiple test cases (2+ cases)
 - Error handling scenarios
 - Edge cases and boundary conditions
 - Different input/output combinations
+- Validation logic with various inputs
+
+**When NOT to use table-driven tests:**
+- Single test case with complex mocking
+- Tests requiring significantly different setup per case
+- Integration tests with heavy external dependencies
+- Tests where table structure becomes too complex
+
+**Testing Guidelines from Coding Standards:**
+1. **Use table-driven testing** - Primary approach for all suitable tests
+2. **Avoid redundant tests** - Don't add meaningless test cases with same purpose
+3. **Prefer injection over global state** - Use constructor/method injection instead of environment variables or global state
+4. **Test inputs as fields** - Define test inputs as test case fields, not function arguments
 
 **Table-Driven Test Examples:**
 
@@ -403,6 +661,68 @@ describe('calculator', () => {
 5. Consider extracting complex setup logic to helper functions
 6. Use TypeScript types for test case objects to ensure type safety
 
+### Modern Tooling and Best Practices
+
+**Build Tools:**
+- **Vite**: Modern, fast bundler with TypeScript support out-of-the-box (recommended)
+- **ESBuild**: Extremely fast bundler and minifier
+- **Webpack 5**: Mature bundler with extensive plugin ecosystem
+- **Turbo/Turborepo**: For monorepo management with built-in caching
+
+**Code Quality Tools:**
+- **ESLint with TypeScript**: Catch potential issues early
+  ```bash
+  pnpm add -D @typescript-eslint/parser @typescript-eslint/eslint-plugin
+  ```
+- **Prettier**: Consistent code formatting
+  ```bash
+  pnpm add -D prettier
+  ```
+- **TypeDoc**: Auto-generate documentation from TypeScript code
+
+**Testing Frameworks:**
+- **Vitest**: Fast, Vite-native test runner (recommended for Vite projects)
+- **Jest**: Popular, mature testing framework
+- **Playwright/Cypress**: E2E testing
+
+**Type-Safe Libraries:**
+- **Zod**: Runtime type validation with TypeScript inference
+- **tRPC**: End-to-end type-safe APIs
+- **Prisma**: Type-safe database ORM
+
+Example tsconfig.json for modern projects:
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler", // For Vite/ESBuild
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": false,
+    "jsx": "react-jsx",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "removeComments": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
 ## Implementation Strategy
 
 **Step 1: Review Project Guidelines**
@@ -490,27 +810,35 @@ describe('calculator', () => {
 
 ## Commands Reference
 
+**CRITICAL: Always use pnpm, never npm**
+
 ```bash
+# Package management
+pnpm install
+pnpm add <package>
+pnpm add -D <dev-package>
+pnpm update
+
 # Type checking
-npm run type-check
-npx tsc --noEmit
+pnpm run type-check
+pnpm exec tsc --noEmit
 
 # Linting and formatting
-npm run lint
-npm run lint -- --fix
-npx prettier --check .
-npx prettier --write .
+pnpm run lint
+pnpm run lint -- --fix
+pnpm exec prettier --check .
+pnpm exec prettier --write .
 
 # Build
-npm run build
+pnpm run build
 
 # Tests
-npm test
-npm run test:watch
-npm run test:coverage
+pnpm test
+pnpm run test:watch
+pnpm run test:coverage
 
 # Development
-npm run dev
+pnpm run dev
 ```
 
 ## Common Pitfalls to Avoid
@@ -579,31 +907,60 @@ test.each([
 ### Before Starting
 - [ ] **Read `.claude/design.md` if it exists** (CRITICAL)
 - [ ] Extract project-specific conventions
-- [ ] Analyze project structure
+- [ ] Analyze project structure (check for pnpm-lock.yaml, package.json)
 - [ ] Search for similar implementations
 - [ ] Review existing patterns
+- [ ] Verify package manager (MUST be pnpm, not npm)
 
 ### During Implementation
-- [ ] Define all types/interfaces first
-- [ ] Use strict TypeScript (no `any`)
-- [ ] Implement proper error handling
+- [ ] Define all types/interfaces first (strict mode, no `any`)
+- [ ] Use TypeScript strict mode configuration
+- [ ] Implement fail-fast error handling (early validation, custom errors)
 - [ ] Follow existing naming conventions
+- [ ] Use early returns instead of nested conditions
+- [ ] Keep functions/classes private unless needed for public API
 - [ ] Write table-driven tests alongside code
+- [ ] Prefer updating existing code over creating new functions (DRY principle)
 
 ### After Implementation - MUST ALL PASS
-- [ ] Run type checking (`npm run type-check`) - **FIX ALL TYPE ERRORS**
-- [ ] Run linters (`npm run lint`) - **FIX ALL LINT ISSUES**
+- [ ] Run type checking (`pnpm run type-check`) - **FIX ALL TYPE ERRORS**
+- [ ] Run linters (`pnpm run lint`) - **FIX ALL LINT ISSUES**
 - [ ] Run formatter if applicable - **FIX ALL FORMATTING ISSUES**
-- [ ] Build successfully (`npm run build`) - **MUST SUCCEED**
-- [ ] Run tests (`npm test`) - **ALL TESTS MUST PASS**
+- [ ] Build successfully (`pnpm run build`) - **MUST SUCCEED**
+- [ ] Run tests (`pnpm test`) - **ALL TESTS MUST PASS**
 - [ ] Add/update table-driven tests for new or modified code
 - [ ] **Iterate until all checks pass** - do not stop until everything is green
-- [ ] Update documentation
+- [ ] Update documentation if needed
 
 ## Key Principles
 
-1. **Project Guidelines First**: Always read and follow `.claude/design.md`
-2. **Type Safety**: Leverage TypeScript's type system fully
-3. **Consistency**: Match existing code style and patterns
-4. **Simplicity**: Write clear, maintainable code
-5. **Testing**: Use table-driven tests to ensure changes work and don't break existing functionality
+1. **Simplicity First**: DRY principle, early returns, minimal public API, prefer breaking changes for simplicity
+2. **Project Guidelines**: Always read and follow `.claude/design.md`
+3. **Type Safety**: Strict mode, no `any`, use `unknown`, leverage advanced types
+4. **Fail-Fast**: Early validation, never swallow errors, meaningful error messages
+5. **Consistency**: Match existing code style and patterns from design.md
+6. **Latest Versions**: Use latest package versions unless compatibility issues
+7. **Testing**: Table-driven tests as primary approach, injection over global state
+8. **Package Manager**: MUST use pnpm, NEVER use npm or legacy-peer-deps
+
+## Version History
+
+### Version 1.1.0 (2025-01-16)
+- Added core principles: Simplicity, Consistency, Fail-Fast, Latest Versions
+- Enhanced type safety section with modern TypeScript features (template literals, mapped types, conditional types, const assertions)
+- Added strict tsconfig.json examples with moduleResolution options
+- Expanded error handling with fail-fast principle and comprehensive examples
+- Enhanced testing section with table-driven testing best practices from Internet research
+- Added testing guidelines: injection over global state, test inputs as fields
+- Added package management section emphasizing pnpm requirement
+- Added directory structure approaches (feature-based, type-based, hybrid)
+- Expanded function patterns with early returns and fail-fast examples
+- Added modern tooling section (Vite, ESBuild, Vitest, Zod, tRPC)
+- Updated commands reference to use pnpm exclusively
+- Updated checklist to reflect all new requirements
+- Updated key principles to emphasize simplicity, fail-fast, and pnpm usage
+
+### Version 1.0.0 (Initial)
+- Initial TypeScript skill with basic best practices
+- Type safety, code organization, error handling, testing guidelines
+- Table-driven testing examples with Jest and Vitest

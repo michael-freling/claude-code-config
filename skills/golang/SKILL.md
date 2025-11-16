@@ -1,11 +1,12 @@
 ---
 name: golang
 description: Go (Golang) feature development following best practices for error handling, interfaces, concurrency, testing, and project structure. Use when adding or updating Go code in projects.
+allowed-tools: [Read, Write, Edit, Glob, Grep, Bash]
 ---
 
 # Go Development Skill
 
-A comprehensive skill for adding or updating features in Go projects following best practices.
+A comprehensive skill for adding or updating features in Go projects following industry best practices from Effective Go, Google Go Style Guide, and the Go community standards.
 
 ## When to Use
 
@@ -63,14 +64,48 @@ Before starting any implementation:
 
 ## Go Best Practices
 
+### Core Principles (from coding-guideline.md)
+
+**CRITICAL: Follow these principles in all Go code:**
+
+1. **Simplicity is paramount**
+   - Update existing code for reusability instead of creating new functions (DRY principle)
+   - Break backward compatibility when it improves code quality (unless explicitly told otherwise)
+
+2. **Consistency**
+   - Follow patterns in `.claude/design.md` when it exists
+   - Match existing codebase conventions
+
+3. **Fail-fast**
+   - Never silently ignore errors
+   - Return errors immediately when they occur
+
+4. **Latest versions**
+   - Use the latest stable versions of dependencies
+   - Only downgrade if compatibility issues arise
+
+5. **Encapsulation**
+   - Keep functions/types unexported unless they need to be public
+   - Use `internal/` packages for private code
+
+6. **Early returns over nesting**
+   - Prefer `if` with early returns over nested `if-else` blocks
+   - "if is bad, else is worse"
+
 ### Code Organization
 
-- Follow standard Go project layout
+**Package Structure Best Practices:**
+
+From Google Go Style Guide and coding guidelines:
+- Avoid generic package names like `util`, `helper`, `common`
+- Package names should describe what they provide, not what they contain
+- Use domain-focused names: `user`, `order`, not `models`, `controllers`
 - One package per directory
-- Keep packages focused and cohesive
+- Put related types in the same package
 - Use `internal/` for private packages
 
-Example structure:
+**Standard Go Project Layout:**
+
 ```
 myproject/
 ├── cmd/
@@ -90,38 +125,101 @@ myproject/
 └── go.sum
 ```
 
+**Key principles:**
+- `cmd/` contains application entry points
+- `internal/` contains private packages (cannot be imported by other projects)
+- `pkg/` contains public, reusable packages
+- Package dependencies should flow inward (core domains have minimal external dependencies)
+
 ### Naming Conventions
 
-- Use camelCase for unexported, CamelCase for exported
-- Interface names: Reader, Writer, Handler (noun or noun+er)
-- Keep names concise but meaningful
-- Package names: lowercase, no underscores
+**From Effective Go and Google Go Style Guide:**
 
-Example:
+- **Case**: Use `camelCase` for unexported, `CamelCase` for exported
+- **Interfaces**:
+  - Single-method interfaces use `-er` suffix: `Reader`, `Writer`, `Handler`
+  - Multi-method interfaces use noun names: `UserRepository`
+- **Functions**:
+  - Avoid repeating package name: `Parse()` not `ParseYAMLConfig()` in package `yaml`
+  - Avoid repeating receiver type: `WriteTo()` not `WriteConfigTo()`
+  - Functions returning values use noun-like names
+  - Functions performing actions use verb-like names
+- **Packages**: lowercase, no underscores, single word preferred
+- **Variables**: Short names in small scopes (`i`, `r`, `w`), descriptive names in larger scopes
+
+**Examples:**
+
 ```go
-// Good: Clear, concise names
-type UserRepository interface {
+// Good: Concise names without repetition
+package user
+
+type Repository interface {
     FindByID(ctx context.Context, id string) (*User, error)
     Create(ctx context.Context, user *User) error
 }
 
-type userRepositoryImpl struct {
+type repository struct {
     db *sql.DB
 }
 
-// Good: Package-level exported function
-func NewUserRepository(db *sql.DB) UserRepository {
+// Good: Constructor doesn't repeat package name
+func NewRepository(db *sql.DB) Repository {
+    return &repository{db: db}
+}
+
+// Bad: Repetitive names
+type UserRepository interface {
+    FindUserByID(ctx context.Context, id string) (*User, error)
+}
+
+func NewUserRepository(db *sql.DB) UserRepository { // Redundant "User" prefix
     return &userRepositoryImpl{db: db}
 }
 ```
 
 ### Error Handling
 
+**From Google Go Style Guide, Effective Go, and coding guidelines:**
+
+**Critical principles:**
+- **NEVER ignore errors** - fail-fast is required (from coding-guideline.md line 105)
 - Return errors as the last return value
-- Wrap errors with context using fmt.Errorf with %w
-- Don't panic in library code
+- Use `%w` to wrap errors when callers need programmatic inspection
+- Use `%v` for simple annotation or at system boundaries
+- Place `%w` at the end of format string: `"context: %w"` not `"%w: context"`
+- Don't panic in library code (only for API misuse or internal implementation details)
 - Handle all errors explicitly
-- Define custom error types for domain errors
+
+**Error Wrapping Strategy:**
+
+```go
+// Good: Use %w when error chain needs inspection
+func (r *repository) FindByID(ctx context.Context, id string) (*User, error) {
+    user, err := r.db.QueryUser(ctx, id)
+    if err != nil {
+        return nil, fmt.Errorf("failed to query user %s: %w", id, err)
+    }
+    return user, nil
+}
+
+// Good: Use %v at system boundaries or for simple annotation
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+    user, err := getUser(r.Context())
+    if err != nil {
+        log.Printf("request failed: %v", err) // %v is fine for logging
+        http.Error(w, "Internal error", 500)
+        return
+    }
+    // ...
+}
+
+// Bad: Ignoring errors (violates fail-fast principle)
+user, _ := getUser(ctx) // NEVER DO THIS
+```
+
+**Error Types for Programmatic Inspection:**
+
+Use sentinel errors or custom error types when callers need to make decisions based on error type:
 
 Example:
 ```go
@@ -163,12 +261,22 @@ if err != nil {
 
 ### Interfaces
 
-- Keep interfaces small (1-3 methods ideal)
-- Define interfaces at point of use (consumer side)
-- Accept interfaces, return structs
-- Use interface{} sparingly; prefer concrete types or generics (Go 1.18+)
+**From Effective Go and Google Go Style Guide:**
 
-Example:
+**Key principles:**
+- **Keep interfaces small** - "one-method interfaces are common in Go code" (Effective Go)
+- **Define interfaces where they're used, not where they're implemented** (consumer-side)
+- **Accept interfaces, return structs** (widely accepted Go idiom)
+- Use `any` (Go 1.18+) sparingly; prefer concrete types or generics
+- Embed interfaces to compose larger contracts from smaller ones
+
+**Why small interfaces:**
+- Easier to implement
+- More flexible composition
+- Simpler to test and mock
+- Promotes loose coupling
+
+**Examples:**
 ```go
 // Good: Small, focused interface
 type UserStore interface {
@@ -227,12 +335,88 @@ type AuditLog struct {
 }
 ```
 
+### CLI and Configuration (from coding-guideline.md)
+
+**Required tools for Go CLI applications:**
+
+From coding-guideline.md line 121:
+- **Use `cobra` for command-line interfaces**
+- **Use `viper` for configuration management**
+
+Example:
+
+```go
+// cmd/root.go
+package cmd
+
+import (
+    "github.com/spf13/cobra"
+    "github.com/spf13/viper"
+)
+
+var rootCmd = &cobra.Command{
+    Use:   "myapp",
+    Short: "My application",
+    Run: func(cmd *cobra.Command, args []string) {
+        // Root command logic
+    },
+}
+
+func Execute() error {
+    return rootCmd.Execute()
+}
+
+func init() {
+    // Initialize configuration
+    cobra.OnInitialize(initConfig)
+
+    rootCmd.PersistentFlags().String("config", "", "config file (default is $HOME/.myapp.yaml)")
+    viper.BindPFlag("config", rootCmd.PersistentFlags().Lookup("config"))
+}
+
+func initConfig() {
+    if cfgFile := viper.GetString("config"); cfgFile != "" {
+        viper.SetConfigFile(cfgFile)
+    } else {
+        viper.AddConfigPath("$HOME")
+        viper.SetConfigName(".myapp")
+    }
+
+    viper.AutomaticEnv()
+    viper.ReadInConfig()
+}
+```
+
 ### Concurrency
 
-- Use context.Context for cancellation and timeouts
+**From Effective Go and Google Go Style Guide:**
+
+**Key principles:**
+- Use `context.Context` for cancellation and timeouts
 - Avoid goroutine leaks with proper cleanup
-- Use channels or sync primitives appropriately
-- Close channels when done sending
+- Use channels to share memory by communicating (not shared memory with locks)
+- Close channels when done sending (sender's responsibility)
+- "Do not communicate by sharing memory; instead, share memory by communicating" (Effective Go)
+
+**Channel Direction:**
+
+Specify send/receive direction to prevent misuse (from Google Go Style Guide):
+
+```go
+// Good: Specify channel direction
+func produce(ch chan<- int) {  // Send-only
+    ch <- 42
+}
+
+func consume(ch <-chan int) {  // Receive-only
+    val := <-ch
+}
+
+// Usage
+ch := make(chan int)
+go produce(ch)
+consume(ch)
+```
 
 Example:
 ```go
@@ -287,11 +471,89 @@ func (s *UserService) ProcessWithWorkers(ctx context.Context, users []User) erro
 }
 ```
 
+### Variable Declaration
+
+**From Google Go Style Guide:**
+
+**Prefer `:=` for initialization with non-zero values:**
+
+```go
+// Good
+i := 42
+name := "John"
+
+// Bad - unnecessary verbosity
+var i = 42
+var name = "John"
+```
+
+**Use `var` for zero values:**
+
+```go
+// Good - ready-for-use zero value
+var users []User
+var config Config // Good for unmarshaling targets
+
+// Bad - unnecessary allocation
+users := []User{}
+```
+
+**Composite literals for known initial values:**
+
+```go
+// Good
+coords := Point{X: x, Y: y}
+users := []User{{ID: "1", Name: "Alice"}}
+```
+
 ### Function Design
 
-- Use functional options pattern for complex constructors
-- Return early to reduce nesting
+**From Google Go Style Guide and coding guidelines:**
+
+**Key principles:**
+- **Early returns over nesting** - "if is bad, else is worse" (coding-guideline.md line 108)
 - Keep functions small and focused
+- Use functional options for complex constructors
+- Use option structs for functions with many parameters
+
+**Early Return Pattern:**
+
+```go
+// Good: Early returns reduce nesting
+func processUser(user *User) error {
+    if user == nil {
+        return errors.New("user is nil")
+    }
+    if user.ID == "" {
+        return errors.New("user ID is empty")
+    }
+    if !user.IsActive {
+        return errors.New("user is not active")
+    }
+
+    // Main logic here with minimal nesting
+    return user.Process()
+}
+
+// Bad: Nested conditions
+func processUser(user *User) error {
+    if user != nil {
+        if user.ID != "" {
+            if user.IsActive {
+                return user.Process()
+            } else {
+                return errors.New("user is not active")
+            }
+        } else {
+            return errors.New("user ID is empty")
+        }
+    } else {
+        return errors.New("user is nil")
+    }
+}
+```
+
+**Functional Options Pattern:**
 
 Example:
 ```go
@@ -338,30 +600,46 @@ server := NewServer(
 
 ### Testing
 
+**From Go Wiki, Google Go Style Guide, and coding-guideline.md:**
+
 **CRITICAL: Always use table-driven tests as the primary testing approach.**
 
-Table-driven tests are the idiomatic Go way to write tests and should be used for:
-- All functions with multiple test cases
+Table-driven tests are the idiomatic Go way to write tests. According to the Go Wiki: "each table entry is a complete test case with inputs and expected results."
+
+**When to use table-driven tests:**
+- All functions with multiple test cases (REQUIRED per coding-guideline.md line 113)
 - Error handling scenarios
 - Edge cases and boundary conditions
 - Different input/output combinations
 
-**Benefits of table-driven tests:**
-- Reduce code duplication
-- Make it easy to add new test cases
-- Improve test readability
-- Ensure consistent test structure
-- Make test coverage gaps obvious
+**Benefits (from Go Wiki and community best practices):**
+- Less code duplication
+- Better clarity - easy to see inputs and expected outputs
+- Improved coverage - wide range of inputs with fewer test cases
+- Easier to maintain - just update the table
+- Test code written once, amortized across multiple cases
 
 **Core principles:**
-- Define test cases as a slice of structs
-- Use t.Run() for subtests with descriptive names
-- Use t.Helper() for test helpers
+- Define test cases as a slice of structs (or map for test independence)
+- **Use subtests with t.Run()** for descriptive names and clear failure identification
+- Use `t.Helper()` in helper functions for better error reporting
+- Use `t.Parallel()` for independent tests
 - Test exported APIs, not implementation details
-- Use clear field names in test case structs
-- **CRITICAL: Define ALL test inputs as struct fields, not as function arguments**
-- Avoid passing setup functions or configuration as test case fields
-- Use consistent setup/teardown patterns across all test cases
+- **CRITICAL: Define ALL test inputs as struct fields** (coding-guideline.md line 116)
+- **Avoid setup functions as test case fields** - use data fields instead
+- **Use consistent setup/teardown patterns** across all test cases
+- **Prefer one test function per function with subtests** (coding-guideline.md line 123)
+- **Run tests with `-shuffle` and `-race` flags** (coding-guideline.md line 122)
+
+**Golang-Specific Testing Requirements:**
+
+From coding-guideline.md lines 119-123:
+1. Use `cobra` for CLI and `viper` for configuration
+2. Run tests with shuffle and race options:
+   ```bash
+   go test -shuffle=on -race ./...
+   ```
+3. Prefer one test function per function with subtests inside
 
 **Consistency in Test Structure:**
 
@@ -1136,14 +1414,16 @@ func NewService(client ExternalClient, db Database) *Service {
    - If build fails, fix the errors immediately
    - Do not proceed until build succeeds
 
-5. **Run tests**
+5. **Run tests with shuffle and race detection**
    ```bash
-   go test ./...
+   go test -shuffle=on -race ./...
    ```
+   - **REQUIRED**: Use `-shuffle=on` and `-race` flags (coding-guideline.md line 122)
    - If tests fail, fix them immediately
    - Add new tests if implementing new features
    - Update existing tests if modifying behavior
    - Do not proceed until all tests pass
+   - Race detector helps find concurrency bugs
 
 6. **Update tests for your changes**
    - If you added a new function/method, add corresponding tests
@@ -1168,11 +1448,11 @@ func NewService(client ExternalClient, db Database) *Service {
 ## Commands Reference
 
 ```bash
-# Format code
+# Format code (REQUIRED - use gofmt, the community standard)
 go fmt ./...
 gofmt -s -w .
 
-# Vet code
+# Vet code (REQUIRED - catches common errors)
 go vet ./...
 
 # Lint (if golangci-lint installed)
@@ -1182,11 +1462,17 @@ golangci-lint run
 go build ./...
 go build -o bin/app ./cmd/app
 
-# Test
-go test ./...
-go test -v ./...
-go test -cover ./...
-go test -race ./...
+# Test (REQUIRED FLAGS: -shuffle=on -race per coding-guideline.md)
+go test -shuffle=on -race ./...
+go test -shuffle=on -race -v ./...
+go test -shuffle=on -race -cover ./...
+
+# Additional test options
+go test ./...                    # Basic test run
+go test -v ./...                 # Verbose output
+go test -cover ./...             # Show coverage
+go test -race ./...              # Race detection only
+go test -short ./...             # Skip long-running tests
 
 # Mod management
 go mod tidy
@@ -1283,8 +1569,26 @@ type UserFinder interface {
 ## Key Principles
 
 1. **Project Guidelines First**: Always read and follow `.claude/design.md`
-2. **Simplicity**: Write clear, idiomatic Go code
-3. **Error Handling**: Handle all errors explicitly
-4. **Interfaces**: Keep them small and define at point of use
+2. **Simplicity**: Write clear, idiomatic Go code (DRY, prefer breaking backward compatibility)
+3. **Error Handling**: Handle all errors explicitly - fail-fast, never ignore errors
+4. **Interfaces**: Keep them small (1-3 methods) and define at point of use
 5. **Concurrency**: Use context for cancellation and avoid leaks
-6. **Testing**: Write table-driven tests for all exported APIs
+6. **Testing**: Write table-driven tests with `-shuffle=on -race` flags
+7. **Early Returns**: Prefer early returns over nesting ("if is bad, else is worse")
+8. **Encapsulation**: Keep unexported by default, use `internal/` packages
+
+## Version History
+
+### 2025-01-16
+- Enhanced with best practices from Internet research (Effective Go, Google Go Style Guide, Go Wiki)
+- Added core principles from coding-guideline.md
+- Added error handling best practices (fail-fast, %w vs %v, error wrapping)
+- Enhanced naming conventions (avoid package/receiver repetition)
+- Added variable declaration patterns (:= vs var)
+- Added early return patterns and function design principles
+- Added CLI tooling requirements (cobra, viper)
+- Enhanced concurrency patterns with channel direction
+- Updated testing requirements with -shuffle and -race flags
+- Added requirement to prefer one test function per function with subtests
+- Enhanced package organization (avoid util/helper/common, domain-focused names)
+- Added interface design principles (consumer-side definition, accept interfaces return structs)

@@ -1,11 +1,11 @@
 ---
 name: github-actions
-description: GitHub Actions workflow development following best practices for CI/CD, testing with gh act, workflow design, and optimization. Use when adding or updating GitHub Actions workflows.
+description: GitHub Actions workflow development following industry best practices for CI/CD, monorepo handling, security, reusable workflows, and local testing with gh act. Use when adding or updating GitHub Actions workflows.
 ---
 
 # GitHub Actions Development Skill
 
-A comprehensive skill for creating and maintaining GitHub Actions workflows with emphasis on local testing using `gh act`.
+A comprehensive skill for creating and maintaining GitHub Actions workflows with emphasis on industry best practices, security, efficiency, and local testing using `gh act`.
 
 ## When to Use
 
@@ -162,13 +162,25 @@ Before starting any implementation:
 
 ## GitHub Actions Best Practices
 
+### Core Principles
+
+**CRITICAL: Follow these core principles in all workflows**
+
+1. **Simplicity First**: Keep workflows simple and easy to understand. Complex workflows are harder to maintain and debug.
+2. **DRY (Don't Repeat Yourself)**: Use reusable workflows and composite actions to avoid duplication. Build a library of reusable components.
+3. **Consistency**: Follow established patterns within the repository. Analyze existing workflows and match their style.
+4. **Fail-Fast**: Configure workflows to fail immediately on errors. Use appropriate timeouts and error handling.
+5. **Latest Versions**: Always use the latest stable versions of actions (e.g., `actions/checkout@v4`, not `@v2`). Pin to major versions (e.g., `@v4`) rather than specific commits for easier maintenance.
+6. **Encapsulation**: Limit what workflows expose. Use appropriate permissions and minimize secrets exposure.
+7. **Early Returns**: Use path filters and conditions to skip unnecessary work early in the workflow.
+
 ### Workflow Structure
 
 - Use clear, descriptive workflow names
 - Organize workflows by purpose (CI, CD, release, automation)
 - Use consistent naming conventions
 - Keep workflows focused and modular
-- Use reusable workflows for common patterns
+- Use reusable workflows for common patterns (up to 10 nested levels, 50 total workflows per run as of Nov 2025)
 
 Example:
 ```yaml
@@ -392,14 +404,22 @@ Example:
 
 ### Security Best Practices
 
-- Use pinned action versions (SHA or major version)
-- Never expose secrets in logs
-- Use GitHub secrets for sensitive data
-- Limit permissions with `permissions` key
-- Use environments for deployment protection
+**CRITICAL: Security is non-negotiable. Follow these practices strictly.**
 
-Example:
+#### GITHUB_TOKEN Permissions (Least Privilege)
+
+**Always set minimum required permissions for GITHUB_TOKEN:**
+
 ```yaml
+# Repository/Organization Level Setting:
+# Settings -> Actions -> Workflow permissions -> "Read repository contents permission"
+
+# Workflow/Job Level (PREFERRED):
+permissions:
+  contents: read      # Only what's needed
+  pull-requests: write  # If creating/updating PRs
+  # Never grant more than necessary
+
 jobs:
   deploy:
     name: Deploy
@@ -421,7 +441,82 @@ jobs:
           # Never echo secrets!
 ```
 
+**Key Security Rules:**
+
+1. **Pinned Action Versions**: Use specific version tags (e.g., `@v4`) to protect against supply-chain attacks
+   ```yaml
+   # Good: Pinned to major version
+   - uses: actions/checkout@v4
+
+   # Better: Pinned to specific version
+   - uses: actions/checkout@v4.1.1
+
+   # Best for security-critical: SHA pin (harder to maintain)
+   - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+   ```
+
+2. **Never Expose Secrets**: Never log, echo, or expose secrets in workflow output
+   ```yaml
+   # Bad: Exposes secret
+   - run: echo "Token is ${{ secrets.API_TOKEN }}"
+
+   # Good: Use secrets only where needed
+   - env:
+       API_TOKEN: ${{ secrets.API_TOKEN }}
+     run: ./deploy.sh  # Script uses $API_TOKEN internally
+   ```
+
+3. **Least Privilege GITHUB_TOKEN**: Set minimal permissions at workflow or job level
+   ```yaml
+   # Workflow level (applies to all jobs)
+   permissions:
+     contents: read
+
+   # Job level (override for specific job)
+   jobs:
+     deploy:
+       permissions:
+         contents: read
+         deployments: write
+   ```
+
+4. **Secure Secrets Management**:
+   - Store all sensitive data in GitHub Secrets (Settings -> Secrets and variables -> Actions)
+   - Use environment-specific secrets for different deployment targets
+   - Rotate secrets regularly
+   - Never commit secrets to the repository
+
+5. **Use Environments for Deployment Protection**:
+   - Configure environment protection rules (required reviewers, wait timers)
+   - Set environment-specific secrets
+   - Use branch protection rules
+
+6. **OIDC for Cloud Authentication** (Preferred over long-lived tokens):
+   ```yaml
+   # Use OpenID Connect for AWS/Azure/GCP authentication
+   permissions:
+     id-token: write  # Required for OIDC
+     contents: read
+
+   - name: Configure AWS credentials
+     uses: aws-actions/configure-aws-credentials@v4
+     with:
+       role-to-assume: arn:aws:iam::123456789012:role/GitHubActionsRole
+       aws-region: us-east-1
+   ```
+
+7. **Validate Third-Party Actions**:
+   - Review source code of third-party actions before use
+   - Prefer well-maintained, popular actions
+   - Consider security scanning tools for actions
+
 ### Reusable Workflows
+
+**CRITICAL: Use reusable workflows to follow DRY principle and standardize CI/CD patterns.**
+
+As of November 2025, GitHub Actions supports:
+- Up to **10 nested reusable workflows** (increased from previous limits)
+- Up to **50 total workflows** called in a single workflow run
 
 Create reusable workflows for common patterns:
 
@@ -435,20 +530,45 @@ on:
       node-version:
         required: true
         type: string
+        description: 'Node.js version to use'
+      working-directory:
+        required: false
+        type: string
+        default: '.'
+        description: 'Working directory for commands'
     secrets:
       npm-token:
         required: false
+        description: 'NPM authentication token'
+    outputs:
+      test-result:
+        description: 'Test execution result'
+        value: ${{ jobs.test.outputs.result }}
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.test.outputs.result }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node-version }}
-      - run: npm ci
-      - run: npm test
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        id: test
+        run: |
+          npm test
+          echo "result=success" >> $GITHUB_OUTPUT
 ```
 
 Use it in other workflows:
@@ -459,9 +579,24 @@ jobs:
     uses: ./.github/workflows/reusable-test.yml
     with:
       node-version: '20'
+      working-directory: 'apps/web'
     secrets:
       npm-token: ${{ secrets.NPM_TOKEN }}
 ```
+
+**Best Practices for Reusable Workflows:**
+
+1. **Centralize in Monorepo**: Store reusable workflows in `.github/workflows/` and reference from subproject workflows
+2. **Use Semantic Versioning**: Tag reusable workflows when storing in separate repositories
+3. **Document Inputs/Outputs**: Provide clear descriptions for all inputs, secrets, and outputs
+4. **Pass Environment Variables as Inputs**: Environment variables from caller workflows don't automatically propagate
+   ```yaml
+   # Caller workflow must explicitly pass values
+   with:
+     environment: ${{ vars.ENVIRONMENT }}
+     region: ${{ vars.AWS_REGION }}
+   ```
+5. **Use Outputs for Communication**: Return results from reusable workflows to caller workflows
 
 ### Composite Actions
 
@@ -501,7 +636,13 @@ steps:
 
 **CRITICAL: For monorepo projects, organize workflows by subproject and use path filters to minimize unnecessary CI runs.**
 
-When working with monorepos containing multiple subprojects, follow these patterns:
+When working with monorepos containing multiple subprojects, follow these patterns inspired by industry best practices:
+
+**Key Benefits of Proper Monorepo Organization:**
+- **Faster CI/CD**: Only affected subprojects run their workflows
+- **Resource Efficiency**: Reduced compute time and costs
+- **Better Developer Experience**: Clearer feedback and faster iteration
+- **Easier Maintenance**: Focused workflows are simpler to understand and update
 
 #### 1. Detect Monorepo Structure
 
@@ -542,7 +683,62 @@ Instead of a single monolithic workflow, create focused workflows:
 
 **CRITICAL: Always use path filters to prevent unnecessary workflow runs.**
 
-Example for Go API service:
+**Advanced Path Filtering with dorny/paths-filter:**
+
+For more sophisticated change detection (especially useful for matrix strategies), use the `dorny/paths-filter` action:
+
+```yaml
+name: CI - Monorepo Smart Detection
+
+on: [push, pull_request]
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      web: ${{ steps.filter.outputs.web }}
+      mobile: ${{ steps.filter.outputs.mobile }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'services/api/**'
+              - 'proto/**'
+            web:
+              - 'apps/web/**'
+              - 'packages/**'
+            mobile:
+              - 'apps/mobile/**'
+              - 'packages/**'
+
+  test-api:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cd services/api && go test ./...
+
+  test-web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cd apps/web && npm test
+```
+
+**Important Notes:**
+- The `dorny/paths-filter` action is limited to 300 files in diffs
+- For larger changes, consider more specific filters or multiple filter jobs
+- Use this approach when you need job-level or step-level filtering (built-in path filters only work at workflow level)
+
+**Basic Path Filtering Example for Go API service:**
 
 ```yaml
 # .github/workflows/ci-api.yml
@@ -1264,10 +1460,49 @@ Before pushing any workflow:
 ## Key Principles
 
 1. **Project Guidelines First**: Always read and follow `.claude/design.md`
-2. **Monorepo Organization**: For monorepos, create separate workflows per subproject with path filters
-3. **Test Locally First**: Always use `gh act` to test workflows before pushing
-4. **Security**: Never expose secrets, use proper permissions
-5. **Efficiency**: Use caching and parallel jobs where appropriate
-6. **Reliability**: Set timeouts, use error handling, test failure scenarios
-7. **Maintainability**: Use clear names, add comments, create reusable workflows
-8. **Iterative Testing**: Run `gh act` repeatedly until all issues are resolved
+2. **Simplicity**: Keep workflows simple and easy to understand
+3. **DRY**: Use reusable workflows and composite actions to avoid duplication
+4. **Consistency**: Follow established patterns within the repository
+5. **Fail-Fast**: Configure workflows to fail immediately on errors with appropriate timeouts
+6. **Latest Versions**: Use latest stable versions of actions (e.g., `@v4`)
+7. **Encapsulation**: Limit what workflows expose with proper permissions
+8. **Early Returns**: Use path filters and conditions to skip unnecessary work
+9. **Monorepo Organization**: For monorepos, create separate workflows per subproject with path filters
+10. **Test Locally First**: Always use `gh act` to test workflows before pushing
+11. **Security**: Never expose secrets, use least privilege permissions
+12. **Efficiency**: Use caching and parallel jobs where appropriate
+13. **Reliability**: Set timeouts, use error handling, test failure scenarios
+14. **Maintainability**: Use clear names, add comments, create reusable workflows
+15. **Iterative Testing**: Run `gh act` repeatedly until all issues are resolved
+
+## Version History
+
+### v2.0.0 (2025-11-16)
+**Major Update: Industry Best Practices Integration**
+
+Added comprehensive industry best practices based on 2025 research:
+
+- **Core Principles Section**: Added 7 fundamental principles (Simplicity, DRY, Consistency, Fail-Fast, Latest Versions, Encapsulation, Early Returns)
+- **Enhanced Security Section**:
+  - GITHUB_TOKEN least privilege permissions with examples
+  - Pinned action versions for supply-chain security
+  - OIDC authentication for cloud providers
+  - Comprehensive secrets management guidelines
+- **Reusable Workflows**: Updated with Nov 2025 limits (10 nested, 50 total workflows)
+  - Added input/output examples
+  - Best practices for environment variable passing
+  - Semantic versioning guidance
+- **Advanced Monorepo Patterns**:
+  - Integration of `dorny/paths-filter` action for sophisticated change detection
+  - Matrix strategy examples for parallel testing
+  - 300-file diff limitation documentation
+  - Performance optimization through smart filtering
+- **Updated Examples**: All examples now use latest action versions (@v4, @v5)
+
+### v1.0.0 (Initial Version)
+- Basic GitHub Actions workflow development guidance
+- Local testing with `gh act`
+- Monorepo workflow organization
+- MCP server setup instructions
+- Security best practices
+- Reusable workflows and composite actions

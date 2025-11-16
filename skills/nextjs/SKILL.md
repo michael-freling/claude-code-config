@@ -1,11 +1,12 @@
 ---
 name: nextjs
-description: Next.js feature development following best practices for App Router, Server Components, Server Actions, Pages Router, routing, and optimization. Use when adding or updating Next.js applications.
+description: Next.js feature development following 2025 best practices for App Router, Server Components, Server Actions, Pages Router, routing, optimization, and Cypress testing. Uses pnpm package manager. Use when adding or updating Next.js applications.
+allowed-tools: [Read, Write, Edit, Glob, Grep, Bash]
 ---
 
 # Next.js Development Skill
 
-A comprehensive skill for adding or updating features in Next.js projects following best practices.
+A comprehensive skill for adding or updating features in Next.js projects following 2025 best practices, with emphasis on App Router, Server Components, security, and table-driven testing with Cypress.
 
 ## When to Use
 
@@ -51,11 +52,14 @@ Before starting any implementation:
 ### 1. Analyze Project Structure
 
 - Check for `next.config.js`, `package.json`
+- Verify Node.js version requirement (minimum 20.9 as of 2025)
+- Confirm pnpm is the package manager (MUST NOT use legacy-peer-deps)
 - Identify if using App Router (app/) or Pages Router (pages/)
 - Review existing component patterns
 - Check for styling approach (CSS modules, Tailwind, styled-components)
 - Identify state management (if any)
 - Review data fetching patterns
+- Check for existing Data Access Layer for database operations
 
 ### 2. Search for Relevant Code
 
@@ -64,15 +68,34 @@ Before starting any implementation:
 - Find existing hooks or utilities
 - Identify styling patterns
 
-## Next.js Best Practices
+## Next.js Best Practices (2025)
+
+### Core Principles
+
+1. **Simplicity First**: Follow DRY principles, update existing code for reusability rather than creating new functions
+2. **Consistency**: Follow project-specific guidelines from `.claude/design.md`
+3. **Fail-Fast**: Ensure errors are caught early and not silently suppressed
+4. **Latest Versions**: Use latest stable versions of packages (Next.js 15+ with React 19+ as of 2025)
+5. **Encapsulation**: Keep code private/unexported unless necessary
+6. **Early Returns**: Prefer early returns and continue statements over nested conditionals
+
+### Package Manager Requirements
+
+- **MUST use pnpm** as the package manager (not npm or yarn)
+- **MUST NOT use** `legacy-peer-deps` or `--force` flags
+- Setup: `pnpm create next-app@latest` for new projects
+- Commands: `pnpm i`, `pnpm dev`, `pnpm build`, `pnpm test`
 
 ### App Router (Next.js 13+)
 
 **Server Components (Default):**
-- Use Server Components by default
-- Add 'use client' only when needed (interactivity, browser APIs)
+- Modern Next.js defaults to Server Components for optimal performance
+- Use Server Components by default - no unnecessary JavaScript in browser
+- Faster load times, smaller bundles, automatic SEO benefits
+- Add 'use client' only when needed (interactivity, browser APIs, event handlers, React hooks)
 - Leverage async/await in Server Components
 - Direct data fetching without useEffect
+- Keep client components focused and minimal
 
 Example:
 ```typescript
@@ -131,14 +154,30 @@ export function UserList({ users }: UserListProps) {
 }
 ```
 
-**Server Actions:**
-- Define server actions in separate files or at top of server components
-- Use proper form validation
+**Server Actions (2025 Best Practices):**
+
+Server Actions are the idiomatic way to perform writes/mutations in Next.js App Router. Starting from Next.js 15/React 19, Server Actions are a type of Server Function.
+
+**Key Guidelines:**
+- Use for side-effects like saving changes, mutations, or logging out
+- Define with `'use server'` directive at function or module level
+- Always create separate `actions.ts` files (better organization and security)
+- Use POST method only (automatically enforced for Server Actions)
+- For reading data from Client Components, prefer Route Handlers (GET requests)
+- Implement proper form validation with Zod or TypeScript interfaces
 - Return structured data with success/error states
 - Use revalidatePath/revalidateTag for cache updates
+- Verify Origin header matches Host header (automatic CSRF protection)
 
-Example:
+**Security Considerations:**
+- Server Actions use POST method, preventing most CSRF vulnerabilities
+- Origin/Host header comparison automatically protects against CSRF
+- Never expose database packages or environment variables outside Data Access Layer
+- Create isolated Data Access Layer for database operations
+
+**File Organization:**
 ```typescript
+// Good: Separate actions file with module-level directive
 // app/actions/user.ts
 'use server';
 
@@ -151,6 +190,7 @@ const createUserSchema = z.object({
 });
 
 export async function createUser(formData: FormData) {
+  // Early return on validation failure
   const parsed = createUserSchema.safeParse({
     name: formData.get('name'),
     email: formData.get('email'),
@@ -161,14 +201,45 @@ export async function createUser(formData: FormData) {
   }
 
   try {
+    // Use Data Access Layer instead of direct db access
     await db.user.create({ data: parsed.data });
     revalidatePath('/users');
     return { success: true };
   } catch (error) {
+    // Fail-fast with explicit error
     return { success: false, error: 'Failed to create user' };
   }
 }
 ```
+
+**Using Server Actions in Client Components:**
+```typescript
+// Bad: Cannot define server action directly in client component
+'use client';
+export default function Form() {
+  async function createUser() {
+    'use server'; // This will not work!
+    // ...
+  }
+}
+
+// Good: Import server action from separate file
+'use client';
+import { createUser } from '@/app/actions/user';
+
+export default function Form() {
+  return (
+    <form action={createUser}>
+      {/* form fields */}
+    </form>
+  );
+}
+```
+
+**Server Actions vs Route Handlers:**
+- Use **Server Actions** for mutations (create, update, delete) - POST only
+- Use **Route Handlers** for fetching data from Client Components - supports GET requests
+- Route Handlers are suitable for reading data as GET requests can be cached
 
 **Metadata and SEO:**
 ```typescript
@@ -313,9 +384,15 @@ const HeavyChart = dynamic(() => import('@/components/HeavyChart'), {
 });
 ```
 
-### API Routes
+### API Routes (Route Handlers)
 
-**App Router API Routes:**
+**When to Use Route Handlers:**
+- Fetching data from Client Components (prefer GET requests)
+- External API integrations
+- Webhooks
+- Custom API endpoints for third-party services
+
+**App Router Route Handlers (2025 Best Practices):**
 ```typescript
 // app/api/users/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
@@ -326,33 +403,84 @@ const updateUserSchema = z.object({
   email: z.string().email().optional(),
 });
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Use Data Access Layer for database operations
+    const user = await getUserById(params.id);
+
+    // Early return for not found
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ user });
+  } catch (error) {
+    // Fail-fast with explicit error
+    return NextResponse.json(
+      { error: 'Failed to fetch user' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const body = await request.json();
-    const validated = updateUserSchema.parse(body);
 
+    // Early return on validation failure (fail-fast)
+    const result = updateUserSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: result.error.errors },
+        { status: 400 }
+      );
+    }
+
+    // Use Data Access Layer
     const user = await db.user.update({
       where: { id: params.id },
-      data: validated,
+      data: result.data,
     });
 
     return NextResponse.json({ user, message: 'User updated' });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: error.errors },
-        { status: 400 }
-      );
-    }
+    // Fail-fast with explicit error
     return NextResponse.json(
       { error: 'Failed to update user' },
       { status: 500 }
     );
   }
 }
+```
+
+**Type Safety for API Responses (2025):**
+```typescript
+// Good: Use TypeScript interfaces for strict API response validation
+interface UserResponse {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+// Or use Zod for runtime validation
+const userResponseSchema = z.object({
+  user: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string().email(),
+  }),
+});
 ```
 
 ### Testing
@@ -365,6 +493,7 @@ Table-driven tests provide the same benefits in Next.js projects:
 - Improve test readability
 - Ensure consistent test structure
 - Make test coverage gaps obvious
+- Avoid redundant, meaningless test cases with the same purpose
 
 **IMPORTANT: Separate happy path and error path test cases**
 - Create separate test case arrays for success and error scenarios
@@ -372,6 +501,14 @@ Table-driven tests provide the same benefits in Next.js projects:
 - Use `errorTestCases` for error scenarios
 - This separation improves test readability and maintenance
 - Makes test intent clearer
+- Split happy and error test sets if they are complicated
+
+**Testing Principles:**
+1. Do not add redundant test cases with the same purpose
+2. Prefer injecting values over changing global states
+3. Define test inputs as test case fields, not function arguments
+4. Keep tests independent - each test should set up its own environment
+5. Do not rely on other tests
 
 **Use table-driven tests for:**
 - Component rendering with different props
@@ -380,6 +517,56 @@ Table-driven tests provide the same benefits in Next.js projects:
 - API route handlers
 - Edge cases and error scenarios
 - E2E tests with Cypress
+
+### Cypress Testing (2025 Best Practices)
+
+**Setup and Configuration:**
+```bash
+# Install Cypress
+pnpm add -D cypress start-server-and-test
+
+# Add to package.json scripts
+{
+  "scripts": {
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "test:e2e": "start-server-and-test start http://localhost:3000 cypress:run"
+  }
+}
+```
+
+**cypress.config.js:**
+```javascript
+import { defineConfig } from 'cypress';
+
+export default defineConfig({
+  e2e: {
+    baseUrl: 'http://localhost:3000',
+    setupNodeEvents(on, config) {
+      // implement node event listeners here
+    },
+  },
+  component: {
+    devServer: {
+      framework: 'next',
+      bundler: 'webpack',
+    },
+  },
+});
+```
+
+**Key Cypress Best Practices:**
+1. **E2E vs Component Testing**: Use E2E for full user flows, Component Testing for individual components
+2. **API Mocking**: Use `cy.intercept()` for mocking API calls
+3. **Fixtures**: Store mock data in `/cypress/fixtures` directory
+4. **Test Isolation**: Each test should be independent with its own setup
+5. **data-testid Attributes**: Use for reliable element selection (not CSS classes)
+6. **CI/CD Integration**: Run Cypress tests in your CI/CD pipeline
+
+**Component Testing Notes:**
+- Component tests do not launch a Next.js server
+- `<Image />` and `getServerSideProps` will not work without workarounds
+- See Cypress Next.js docs for solutions
 
 **Table-Driven Test Pattern:**
 
@@ -696,7 +883,31 @@ describe('generateMetadata', () => {
 
 **E2E Testing with Cypress:**
 
-Cypress tests should also use the table-driven pattern with separated success and error cases:
+Cypress tests should also use the table-driven pattern with separated success and error cases.
+
+**Using data-testid Attributes:**
+```typescript
+// Good: Use data-testid in your components for reliable testing
+export function LoginForm() {
+  return (
+    <form>
+      <input
+        data-testid="email-input"
+        type="email"
+        name="email"
+      />
+      <input
+        data-testid="password-input"
+        type="password"
+        name="password"
+      />
+      <button data-testid="submit-button">Login</button>
+    </form>
+  );
+}
+```
+
+**Cypress E2E Test Examples:**
 
 ```typescript
 // cypress/e2e/login.cy.ts
@@ -725,6 +936,7 @@ describe('Login Page', () => {
 
   successTestCases.forEach((testCase) => {
     it(testCase.name, () => {
+      // Use data-testid for reliable element selection
       cy.get('[data-testid="email-input"]').type(testCase.email);
       cy.get('[data-testid="password-input"]').type(testCase.password);
 
@@ -761,12 +973,6 @@ describe('Login Page', () => {
       email: 'user@example.com',
       password: 'wrongpassword',
       expectedError: 'Invalid email or password',
-    },
-    {
-      name: 'shows error with unverified account',
-      email: 'unverified@example.com',
-      password: 'password123',
-      expectedError: 'Please verify your email address',
     },
   ];
 
@@ -947,6 +1153,83 @@ describe('API Integration', () => {
     });
   });
 });
+
+// cypress/e2e/api-mocking.cy.ts - Using cy.intercept() for API mocking
+describe('API Mocking with cy.intercept()', () => {
+  beforeEach(() => {
+    // Load mock data from fixtures
+    cy.fixture('users.json').as('usersData');
+  });
+
+  const successTestCases = [
+    {
+      name: 'displays user data from mocked API',
+      route: '/api/users/*',
+      fixture: 'users.json',
+      expectedText: 'John Doe',
+    },
+    {
+      name: 'handles loading state correctly',
+      route: '/api/posts/*',
+      delay: 1000,
+      fixture: 'posts.json',
+    },
+  ];
+
+  successTestCases.forEach((testCase) => {
+    it(testCase.name, () => {
+      // Mock API response
+      cy.intercept('GET', testCase.route, {
+        fixture: testCase.fixture,
+        delay: testCase.delay || 0,
+      }).as('apiCall');
+
+      cy.visit('/users');
+
+      if (testCase.delay) {
+        // Verify loading state appears
+        cy.get('[data-testid="loading-spinner"]').should('be.visible');
+      }
+
+      cy.wait('@apiCall');
+
+      if (testCase.expectedText) {
+        cy.contains(testCase.expectedText).should('be.visible');
+      }
+    });
+  });
+
+  const errorTestCases = [
+    {
+      name: 'displays error message on API failure',
+      route: '/api/users/*',
+      statusCode: 500,
+      expectedError: 'Failed to load users',
+    },
+    {
+      name: 'handles network timeout gracefully',
+      route: '/api/posts/*',
+      forceNetworkError: true,
+      expectedError: 'Network error',
+    },
+  ];
+
+  errorTestCases.forEach((testCase) => {
+    it(testCase.name, () => {
+      // Mock API error
+      cy.intercept('GET', testCase.route, {
+        statusCode: testCase.statusCode || 500,
+        forceNetworkError: testCase.forceNetworkError,
+      }).as('apiError');
+
+      cy.visit('/users');
+
+      cy.wait('@apiError');
+
+      cy.contains(testCase.expectedError).should('be.visible');
+    });
+  });
+});
 ```
 
 **When NOT to use table-driven tests:**
@@ -968,74 +1251,104 @@ describe('API Integration', () => {
 
 **Step 1: Review Project Guidelines**
 - Read `.claude/design.md` if it exists (MANDATORY)
+- Verify pnpm is the package manager (check package.json)
 - Identify App Router vs Pages Router
 - Extract component patterns
 - Note styling approach
+- Check for Data Access Layer pattern
 
 **Step 2: Plan the Changes**
 - Create a todo list with specific tasks
 - Break down into components
-- Identify server vs client components
+- Identify server vs client components (default to server)
+- Plan for simplicity and reusability (DRY principle)
+- Consider updating existing code rather than creating new
 
 **Step 3: Read Existing Code**
 - Review similar pages/components
 - Understand data fetching patterns
 - Note routing conventions
+- Check for existing Server Actions
+- Identify test patterns
 
 **Step 4: Implement Changes**
 - Follow patterns from design.md
-- Use Server Components by default
-- Add 'use client' only when needed
-- Implement proper types
+- Use Server Components by default (Next.js 15+ with React 19+)
+- Add 'use client' only when needed (interactivity, hooks, browser APIs)
+- Create separate actions.ts files for Server Actions
+- Use Data Access Layer for database operations
+- Implement proper TypeScript types
+- Add data-testid attributes for testing
+- Prefer early returns over nested conditionals
 
-**Step 5: Ensure Quality and Fix All Issues**
+**Step 5: Write Tests**
+- Use table-driven tests with separate success/error cases
+- Add data-testid attributes to components
+- Write Cypress E2E tests for user flows
+- Use cy.intercept() for API mocking
+- Store mock data in fixtures
+- Ensure test independence
+
+**Step 6: Ensure Quality and Fix All Issues**
 
 **CRITICAL: All quality checks must pass before considering the task complete.**
 
 1. **Run type checking**
    ```bash
-   npm run type-check
+   pnpm type-check
    # or
-   npx tsc --noEmit
+   pnpm tsc --noEmit
    ```
    - If type errors exist, fix them immediately
    - Do not proceed until type checking passes
 
 2. **Run Next.js linter**
    ```bash
-   npm run lint
+   pnpm lint
    ```
-   - If lint errors exist, try auto-fix first: `npm run lint -- --fix`
+   - If lint errors exist, try auto-fix first: `pnpm lint --fix`
    - Fix any remaining issues manually
    - Do not proceed until linter passes
 
 3. **Build the project**
    ```bash
-   npm run build
+   pnpm build
    ```
    - If build fails, fix the errors immediately
    - Next.js build catches runtime errors and type issues
    - Do not proceed until build succeeds
 
-4. **Run tests (if available)**
+4. **Run unit/integration tests (if available)**
    ```bash
-   npm test
+   pnpm test
    ```
    - If tests fail, fix them immediately
    - Add new tests if implementing new features or components
    - Update existing tests if modifying behavior
    - Do not proceed until all tests pass
 
-5. **Manual browser testing**
-   - Start dev server: `npm run dev`
+5. **Run Cypress E2E tests (if available)**
+   ```bash
+   pnpm cypress:run
+   # or
+   pnpm test:e2e
+   ```
+   - If tests fail, fix them immediately
+   - Add new E2E tests for new user flows
+   - Update existing tests if user flows changed
+   - Do not proceed until all tests pass
+
+6. **Manual browser testing**
+   - Start dev server: `pnpm dev`
    - Test the feature in browser
    - Check for console errors
    - Verify responsive behavior
    - Test different user interactions
 
-6. **Update tests for your changes**
+7. **Update tests for your changes**
    - If you added a new component, add corresponding tests
    - If you modified behavior, update existing tests
+   - Add data-testid attributes for Cypress testing
    - Ensure test coverage is maintained or improved
 
 **Iterative Fix Process:**
@@ -1044,39 +1357,47 @@ describe('API Integration', () => {
   - ✅ No type errors
   - ✅ No lint issues
   - ✅ Build succeeds (very important for Next.js)
-  - ✅ All tests pass
+  - ✅ All unit/integration tests pass
+  - ✅ All Cypress E2E tests pass
   - ✅ No console errors in browser
   - ✅ Feature works as expected
 
 ## Commands Reference
 
+**IMPORTANT: Use pnpm instead of npm**
+
 ```bash
+# Setup new project
+pnpm create next-app@latest
+
+# Install dependencies
+pnpm i
+
 # Development
-npm run dev
+pnpm dev
 
 # Type checking
-npm run type-check
-npx tsc --noEmit
+pnpm type-check
+pnpm tsc --noEmit
 
 # Linting
-npm run lint
-npm run lint -- --fix
+pnpm lint
+pnpm lint --fix
 
 # Build (CRITICAL - catches many issues)
-npm run build
+pnpm build
 
 # Production
-npm start
+pnpm start
 
 # Unit/Integration Tests
-npm test
-npm run test:watch
+pnpm test
+pnpm test:watch
 
 # E2E Tests with Cypress
-npm run cypress:open     # Interactive mode
-npm run cypress:run      # Headless mode
-npx cypress run          # Direct run
-npx cypress open         # Direct interactive mode
+pnpm cypress:open     # Interactive mode
+pnpm cypress:run      # Headless mode
+pnpm test:e2e         # Run with server (if configured with start-server-and-test)
 ```
 
 ## Common Pitfalls to Avoid
@@ -1149,23 +1470,53 @@ export default async function Page() {
 - [ ] Write table-driven tests alongside code (separate success/error cases)
 
 ### After Implementation - MUST ALL PASS
-- [ ] Run type checking (`npm run type-check`) - **FIX ALL TYPE ERRORS**
-- [ ] Run linters (`npm run lint`) - **FIX ALL LINT ISSUES**
-- [ ] Build successfully (`npm run build`) - **MUST SUCCEED** (critical for Next.js)
-- [ ] Run unit tests if available (`npm test`) - **ALL TESTS MUST PASS**
-- [ ] Run Cypress E2E tests if available (`npm run cypress:run` or `npx cypress run`) - **ALL TESTS MUST PASS**
+- [ ] Run type checking (`pnpm type-check`) - **FIX ALL TYPE ERRORS**
+- [ ] Run linters (`pnpm lint`) - **FIX ALL LINT ISSUES**
+- [ ] Build successfully (`pnpm build`) - **MUST SUCCEED** (critical for Next.js)
+- [ ] Run unit tests if available (`pnpm test`) - **ALL TESTS MUST PASS**
+- [ ] Run Cypress E2E tests if available (`pnpm cypress:run` or `pnpm test:e2e`) - **ALL TESTS MUST PASS**
 - [ ] Add/update table-driven tests (separate success/error cases) for new or modified components
+- [ ] Add data-testid attributes for Cypress testing
 - [ ] Test in browser - **NO CONSOLE ERRORS**
 - [ ] Verify responsive design
 - [ ] **Iterate until all checks pass** - do not stop until everything is green
 - [ ] Update documentation
 
-## Key Principles
+## Key Principles (2025)
 
-1. **Project Guidelines First**: Always read and follow `.claude/design.md`
-2. **Server First**: Use Server Components by default
-3. **Optimization**: Leverage Next.js built-in optimizations
-4. **Type Safety**: Use TypeScript for all components
-5. **User Experience**: Implement loading and error states
-6. **Performance**: Code split heavy components
-7. **Testing**: Use table-driven tests with separated success/error cases for unit, integration, and E2E tests
+1. **Package Manager**: Always use pnpm (MUST NOT use legacy-peer-deps)
+2. **Project Guidelines First**: Always read and follow `.claude/design.md`
+3. **Simplicity & DRY**: Update existing code for reusability, avoid creating new when possible
+4. **Server First**: Use Server Components by default (Next.js 15+ with React 19+)
+5. **Security**: Use Server Actions for mutations, Data Access Layer for database
+6. **Type Safety**: Use TypeScript with Zod for runtime validation
+7. **User Experience**: Implement loading and error states
+8. **Optimization**: Leverage Next.js built-in optimizations
+9. **Performance**: Code split heavy components
+10. **Fail-Fast**: Early returns, explicit error handling
+11. **Testing**: Table-driven tests with Cypress E2E, separate success/error cases
+
+## Version History
+
+### Version 2.0 (2025-01-16)
+- Updated for 2025 best practices (Next.js 15+, React 19+)
+- Added mandatory pnpm package manager requirement
+- Enhanced Server Actions guidelines with security best practices
+- Added Data Access Layer pattern
+- Expanded Cypress testing section with setup, configuration, and examples
+- Added API mocking with cy.intercept() examples
+- Emphasized data-testid attributes for testing
+- Incorporated coding guidelines: simplicity, DRY, fail-fast, early returns
+- Added testing principles: avoid redundant tests, injection over global state
+- Enhanced Type Safety section for API responses
+- Clarified Server Actions vs Route Handlers usage
+- Added Core Principles section (simplicity, consistency, latest versions, encapsulation)
+- Updated all commands to use pnpm instead of npm
+- Added Node.js version requirement (20.9+)
+
+### Version 1.0 (Previous)
+- Initial Next.js skill with App Router and Pages Router support
+- Basic Server Components and Client Components guidance
+- Server Actions examples
+- Table-driven testing pattern
+- Jest/Vitest examples
