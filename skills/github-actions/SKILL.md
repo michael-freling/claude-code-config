@@ -144,6 +144,10 @@ Before starting any implementation:
 ### 1. Analyze Project Structure
 
 - Check for existing workflows in `.github/workflows/`
+- **Identify if the repository is a monorepo** (multiple subprojects in one repo)
+  - Look for directories like `services/`, `apps/`, `packages/`, `go/`, `node/`
+  - Check for workspace files: `go.work`, `pnpm-workspace.yaml`, `lerna.json`
+  - If monorepo: Plan separate workflows per subproject with path filters
 - Identify project type and technology stack
 - Review existing workflow patterns
 - Check for secrets and environment variables
@@ -493,6 +497,417 @@ steps:
   - run: npm test
 ```
 
+### Monorepo Workflow Organization
+
+**CRITICAL: For monorepo projects, organize workflows by subproject and use path filters to minimize unnecessary CI runs.**
+
+When working with monorepos containing multiple subprojects, follow these patterns:
+
+#### 1. Detect Monorepo Structure
+
+First, analyze the repository structure to identify if it's a monorepo:
+
+```bash
+# Common monorepo patterns
+# - Language-specific directories: go/, node/, python/
+# - Service directories: services/api/, services/web/
+# - App directories: apps/frontend/, apps/backend/
+# - Package directories: packages/shared/, packages/ui/
+```
+
+#### 2. Create Separate Workflow Files per Subproject
+
+**Pattern: One workflow file per subproject**
+
+Instead of a single monolithic workflow, create focused workflows:
+
+```
+.github/
+  workflows/
+    ci-api.yml          # API service CI
+    ci-web.yml          # Web app CI
+    ci-shared.yml       # Shared packages CI
+    ci-proto.yml        # Proto/schema CI (if applicable)
+    cd-api.yml          # API deployment
+    cd-web.yml          # Web deployment
+```
+
+**Benefits:**
+- Easier to understand and maintain
+- Faster feedback (only relevant CI runs)
+- Clearer failure attribution
+- Independent versioning and deployment
+
+#### 3. Use Path Filters to Trigger Only on Relevant Changes
+
+**CRITICAL: Always use path filters to prevent unnecessary workflow runs.**
+
+Example for Go API service:
+
+```yaml
+# .github/workflows/ci-api.yml
+name: CI - API Service
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'services/api/**'           # API source code
+      - 'proto/**'                  # Shared proto files
+      - 'go.work'                   # Go workspace file
+      - 'go.work.sum'               # Go workspace sum
+      - '.github/workflows/ci-api.yml'  # This workflow file
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/api/**'
+      - 'proto/**'
+      - 'go.work'
+      - 'go.work.sum'
+      - '.github/workflows/ci-api.yml'
+
+jobs:
+  test:
+    name: Test API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache-dependency-path: services/api/go.sum
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Run linter
+        run: golangci-lint run
+
+      - name: Build
+        run: go build ./...
+```
+
+Example for Next.js web app:
+
+```yaml
+# .github/workflows/ci-web.yml
+name: CI - Web App
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'apps/web/**'
+      - 'packages/shared/**'        # Shared packages
+      - 'package.json'              # Root package.json
+      - 'pnpm-lock.yaml'            # Lock file
+      - '.github/workflows/ci-web.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/shared/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/ci-web.yml'
+
+jobs:
+  test:
+    name: Test Web App
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Run linter
+        run: pnpm lint
+
+      - name: Build
+        run: pnpm build
+```
+
+#### 4. Handle Cross-Subproject Dependencies
+
+When changes affect multiple subprojects (e.g., proto changes):
+
+```yaml
+# .github/workflows/ci-proto.yml
+name: CI - Proto & Generated Code
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'proto/**'
+      - '.github/workflows/ci-proto.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'proto/**'
+      - '.github/workflows/ci-proto.yml'
+
+jobs:
+  validate:
+    name: Validate Proto Files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install buf
+        uses: bufbuild/buf-setup-action@v1
+
+      - name: Lint proto files
+        run: buf lint
+        working-directory: proto
+
+      - name: Check for breaking changes
+        run: buf breaking --against '.git#branch=main'
+        working-directory: proto
+
+  test-consumers:
+    name: Test Proto Consumers
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        consumer:
+          - services/api
+          - services/worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate proto code
+        run: buf generate
+        working-directory: proto
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Test consumer
+        run: go test ./...
+        working-directory: ${{ matrix.consumer }}
+```
+
+#### 5. Common Path Filter Patterns
+
+**Go Monorepo:**
+```yaml
+paths:
+  - 'services/myservice/**'    # Service code
+  - 'pkg/shared/**'            # Shared packages
+  - 'go.work'                  # Workspace file
+  - 'go.work.sum'
+  - 'services/myservice/go.mod'
+  - 'services/myservice/go.sum'
+```
+
+**Node.js/TypeScript Monorepo (pnpm/yarn workspaces):**
+```yaml
+paths:
+  - 'apps/myapp/**'            # App code
+  - 'packages/**'              # Shared packages
+  - 'package.json'             # Root package.json
+  - 'pnpm-lock.yaml'           # or yarn.lock, package-lock.json
+  - 'pnpm-workspace.yaml'      # Workspace config
+```
+
+**Python Monorepo:**
+```yaml
+paths:
+  - 'services/myservice/**'
+  - 'libs/shared/**'
+  - 'pyproject.toml'
+  - 'poetry.lock'              # or requirements.txt
+```
+
+#### 6. Shared Workflow Configuration
+
+Use reusable workflows for common patterns:
+
+```yaml
+# .github/workflows/reusable-go-ci.yml
+name: Reusable Go CI
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+      go-version:
+        required: false
+        type: string
+        default: '1.21'
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+      - run: go test ./...
+      - run: golangci-lint run
+      - run: go build ./...
+```
+
+Use in subproject workflows:
+
+```yaml
+# .github/workflows/ci-api.yml
+name: CI - API
+
+on:
+  push:
+    paths: ['services/api/**', 'proto/**', '.github/workflows/ci-api.yml']
+  pull_request:
+    paths: ['services/api/**', 'proto/**', '.github/workflows/ci-api.yml']
+
+jobs:
+  test:
+    uses: ./.github/workflows/reusable-go-ci.yml
+    with:
+      working-directory: services/api
+      go-version: '1.21'
+```
+
+#### 7. Complete Monorepo Example
+
+Directory structure:
+```
+myrepo/
+├── .github/
+│   └── workflows/
+│       ├── ci-api.yml
+│       ├── ci-web.yml
+│       ├── ci-mobile.yml
+│       ├── ci-proto.yml
+│       └── reusable-go-ci.yml
+├── proto/
+│   └── api/
+│       └── v1/
+├── services/
+│   ├── api/          # Go service
+│   └── worker/       # Go service
+├── apps/
+│   ├── web/          # Next.js app
+│   └── mobile/       # React Native app
+├── packages/
+│   └── shared/       # Shared TypeScript packages
+├── go.work
+└── package.json
+```
+
+**Key Rules:**
+1. ✅ One workflow per subproject
+2. ✅ Always include path filters
+3. ✅ Include shared dependencies in path filters (proto/, packages/, etc.)
+4. ✅ Include the workflow file itself in path filters
+5. ✅ Use `working-directory` in jobs or steps
+6. ✅ Use appropriate cache keys per subproject
+7. ✅ Test with `gh act` to verify path filters work
+
+**Path Filter Testing:**
+
+```bash
+# Test that workflow only runs for relevant changes
+git checkout -b test-path-filters
+
+# Change only API code
+echo "// test" >> services/api/main.go
+gh act -l  # Should only show ci-api workflow
+
+# Change only web code
+echo "// test" >> apps/web/src/page.tsx
+gh act -l  # Should only show ci-web workflow
+
+# Change proto files
+echo "// test" >> proto/api/v1/user.proto
+gh act -l  # Should show ci-proto AND ci-api workflows (dependency)
+```
+
+#### 8. Avoiding Common Monorepo Pitfalls
+
+**Bad: Single workflow for everything**
+```yaml
+# ❌ Don't do this in monorepos
+name: CI - Everything
+on: [push, pull_request]  # No path filters!
+jobs:
+  test-all:
+    steps:
+      - run: cd services/api && go test ./...
+      - run: cd services/worker && go test ./...
+      - run: cd apps/web && npm test
+      - run: cd apps/mobile && npm test
+      # Runs ALL tests even if only one file changed!
+```
+
+**Good: Separate workflows with path filters**
+```yaml
+# ✅ Do this instead
+# .github/workflows/ci-api.yml
+name: CI - API
+on:
+  push:
+    paths: ['services/api/**', '.github/workflows/ci-api.yml']
+jobs:
+  test:
+    defaults:
+      run:
+        working-directory: services/api
+    steps:
+      - run: go test ./...
+```
+
+**Bad: Missing shared dependencies in path filters**
+```yaml
+# ❌ Missing proto dependency
+paths:
+  - 'services/api/**'
+  # Missing: proto/** (API depends on proto files!)
+```
+
+**Good: Include all dependencies**
+```yaml
+# ✅ Include all relevant paths
+paths:
+  - 'services/api/**'
+  - 'proto/**'              # Shared schemas
+  - 'pkg/shared/**'         # Shared packages
+  - 'go.work'               # Workspace config
+  - '.github/workflows/ci-api.yml'  # This workflow
+```
+
 ### Error Handling
 
 - Use `continue-on-error` for non-critical steps
@@ -811,6 +1226,8 @@ Before pushing any workflow:
 ### Before Starting
 - [ ] **Read `.claude/design.md` if it exists** (CRITICAL)
 - [ ] Extract CI/CD requirements
+- [ ] **Check if repository is a monorepo** (multiple subprojects)
+- [ ] If monorepo: Identify all subprojects and their dependencies
 - [ ] Analyze existing workflows
 - [ ] Identify required secrets and permissions
 - [ ] Review repository settings
@@ -818,6 +1235,10 @@ Before pushing any workflow:
 ### During Implementation
 - [ ] Use clear, descriptive names
 - [ ] Add appropriate triggers and filters
+- [ ] **For monorepos: Create separate workflow per subproject**
+- [ ] **For monorepos: Add path filters to only run on relevant changes**
+- [ ] **For monorepos: Include shared dependencies in path filters**
+- [ ] **For monorepos: Use `working-directory` in jobs/steps**
 - [ ] Implement proper caching
 - [ ] Set timeout limits
 - [ ] Use pinned action versions
@@ -843,9 +1264,10 @@ Before pushing any workflow:
 ## Key Principles
 
 1. **Project Guidelines First**: Always read and follow `.claude/design.md`
-2. **Test Locally First**: Always use `gh act` to test workflows before pushing
-3. **Security**: Never expose secrets, use proper permissions
-4. **Efficiency**: Use caching and parallel jobs where appropriate
-5. **Reliability**: Set timeouts, use error handling, test failure scenarios
-6. **Maintainability**: Use clear names, add comments, create reusable workflows
-7. **Iterative Testing**: Run `gh act` repeatedly until all issues are resolved
+2. **Monorepo Organization**: For monorepos, create separate workflows per subproject with path filters
+3. **Test Locally First**: Always use `gh act` to test workflows before pushing
+4. **Security**: Never expose secrets, use proper permissions
+5. **Efficiency**: Use caching and parallel jobs where appropriate
+6. **Reliability**: Set timeouts, use error handling, test failure scenarios
+7. **Maintainability**: Use clear names, add comments, create reusable workflows
+8. **Iterative Testing**: Run `gh act` repeatedly until all issues are resolved

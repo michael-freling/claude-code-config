@@ -31,7 +31,12 @@ $ARGUMENTS
 2. **Create a detailed plan**:
    - Break down tasks by subproject
    - Identify execution order (sequential vs parallel)
-   - Determine appropriate skills to use for each subproject
+   - **Determine appropriate Claude Code Skills** to use for each subproject:
+     - `golang` skill for Go projects
+     - `nextjs` skill for Next.js applications
+     - `typescript` skill for TypeScript projects
+     - `protobuf` skill for Protocol Buffer files
+     - `github-actions` skill for GitHub Actions workflows
    - Consider testing strategy for each subproject
 
 3. **Use TodoWrite** to create a task list with clear phases
