@@ -145,6 +145,17 @@ That includings following guideline:
 2. Use `gh act` to verify new changes locally
 
 
-## Base guideline
+## Bash guideline
 
 1. Handle errors always. For example, add `set -euo pipefail` at the beginning of a script.
+
+
+## CLAUDE.md
+
+Create CLAUDE.md based on followings:
+
+1. Keep CLAUDE.md as much simple and concise as possible
+1. Include general coding guideline and only of it. DO NOT INCLUDE language or framework specific guidelines.
+3. Read a guideline file written by a `document-guideline` slash command
+4. Use subagents and agents' roles as much as possible under ~/.claude/roles
+5. DO NOT INCLUDE descriptions about slash commands
