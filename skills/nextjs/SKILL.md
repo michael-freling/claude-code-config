@@ -22,25 +22,25 @@ Use this skill when:
 
 ### 0. Read Project Design Documentation
 
-**CRITICAL FIRST STEP: Always check for and read `.claude/design.md`**
+**CRITICAL FIRST STEP: Always check for and read `.claude/docs/guideline.md`**
 
 Before starting any implementation:
 
-1. **Look for `.claude/design.md` in the current directory**
+1. **Look for `.claude/docs/guideline.md` in the current directory**
    - If found, read it thoroughly
    - This contains project-specific coding standards, conventions, and architecture
    - Follow these guidelines strictly as they override general best practices
 
 2. **For monorepos or subprojects:**
-   - Check for `.claude/design.md` in the subproject root
+   - Check for `.claude/docs/guideline.md` in the subproject root
    - Also check the repository root for overall standards
    - Subproject-specific rules take precedence over repository-level rules
 
-3. **If no design.md exists:**
-   - Consider running `/document-design` to create one
+3. **If no guideline.md exists:**
+   - Consider running `/document-guideline` to create one
    - Or proceed with analyzing the codebase manually
 
-**What to extract from design.md:**
+**What to extract from guideline.md:**
 - Project-specific naming conventions
 - Directory structure (App Router vs Pages Router)
 - Component organization patterns
@@ -73,7 +73,7 @@ Before starting any implementation:
 ### Core Principles
 
 1. **Simplicity First**: Follow DRY principles, update existing code for reusability rather than creating new functions
-2. **Consistency**: Follow project-specific guidelines from `.claude/design.md`
+2. **Consistency**: Follow project-specific guidelines from `.claude/docs/guideline.md`
 3. **Fail-Fast**: Ensure errors are caught early and not silently suppressed
 4. **Latest Versions**: Use latest stable versions of packages (Next.js 15+ with React 19+ as of 2025)
 5. **Encapsulation**: Keep code private/unexported unless necessary
@@ -1251,7 +1251,7 @@ describe('API Mocking with cy.intercept()', () => {
 ## Implementation Strategy
 
 **Step 1: Review Project Guidelines**
-- Read `.claude/design.md` if it exists (MANDATORY)
+- Read `.claude/docs/guideline.md` if it exists (MANDATORY)
 - Verify pnpm is the package manager (check package.json)
 - Identify App Router vs Pages Router
 - Extract component patterns
@@ -1455,7 +1455,7 @@ export default async function Page() {
 ## Checklist
 
 ### Before Starting
-- [ ] **Read `.claude/design.md` if it exists** (CRITICAL)
+- [ ] **Read `.claude/docs/guideline.md` if it exists** (CRITICAL)
 - [ ] Identify App Router vs Pages Router
 - [ ] Extract project-specific conventions
 - [ ] Review existing component patterns
@@ -1486,7 +1486,7 @@ export default async function Page() {
 ## Key Principles (2025)
 
 1. **Package Manager**: Always use pnpm (MUST NOT use legacy-peer-deps)
-2. **Project Guidelines First**: Always read and follow `.claude/design.md`
+2. **Project Guidelines First**: Always read and follow `.claude/docs/guideline.md`
 3. **Simplicity & DRY**: Update existing code for reusability, avoid creating new when possible
 4. **Server First**: Use Server Components by default (Next.js 15+ with React 19+)
 5. **Security**: Use Server Actions for mutations, Data Access Layer for database

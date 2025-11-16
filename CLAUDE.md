@@ -10,8 +10,8 @@ Follow best practices of coding and each language:
    - Instead of creating new functions, always update existing code for reusability (DRY principle)
    - Prefer to break backward compatibility unless users explicitly mention otherwise
 
-2. **Ensure consistency** by following `.claude/design.md`
-   - **CRITICAL**: Always read `.claude/design.md` if it exists before starting work
+2. **Ensure consistency** by following `.claude/docs/guideline.md`
+   - **CRITICAL**: Always read `.claude/docs/guideline.md` if it exists before starting work
    - Project-specific guidelines override general best practices
 
 3. **Ensure fail-fast** instead of silently killing errors
@@ -65,6 +65,6 @@ Follow best practices of coding and each language:
    - Temporary documents and detailed analysis
    - Read only by Claude Code
 
-3. **.claude/design.md** - Project-specific design guidelines
+3. **.claude/docs/guideline.md** - Project-specific design guidelines
    - **CRITICAL**: Always read if it exists before making changes
    - Contains project conventions and patterns that override general best practices

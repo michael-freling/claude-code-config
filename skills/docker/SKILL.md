@@ -22,25 +22,25 @@ Use this skill when:
 
 ### 0. Read Project Design Documentation
 
-**CRITICAL FIRST STEP: Always check for and read `.claude/design.md`**
+**CRITICAL FIRST STEP: Always check for and read `.claude/docs/guideline.md`**
 
 Before starting any implementation:
 
-1. **Look for `.claude/design.md` in the current directory**
+1. **Look for `.claude/docs/guideline.md` in the current directory**
    - If found, read it thoroughly
    - This contains project-specific coding standards, conventions, and architecture
    - Follow these guidelines strictly as they override general best practices
 
 2. **For monorepos or subprojects:**
-   - Check for `.claude/design.md` in the subproject root
+   - Check for `.claude/docs/guideline.md` in the subproject root
    - Also check the repository root for overall standards
    - Subproject-specific rules take precedence over repository-level rules
 
-3. **If no design.md exists:**
-   - Consider running `/document-design` to create one
+3. **If no guideline.md exists:**
+   - Consider running `/document-guideline` to create one
    - Or proceed with analyzing the codebase manually
 
-**What to extract from design.md:**
+**What to extract from guideline.md:**
 - Container naming conventions
 - Base image preferences
 - Security requirements
@@ -709,7 +709,7 @@ DOCKER_BUILDKIT=1 docker build --progress=plain -t myapp:latest .
 ## Implementation Strategy
 
 **Step 1: Review Project Guidelines**
-- Read `.claude/design.md` if it exists (MANDATORY)
+- Read `.claude/docs/guideline.md` if it exists (MANDATORY)
 - Extract container-specific patterns
 - Note security and deployment requirements
 
@@ -805,7 +805,7 @@ CMD ["node", "app.js"]
 ## Checklist
 
 ### Before Starting
-- [ ] **Read `.claude/design.md` if it exists** (CRITICAL)
+- [ ] **Read `.claude/docs/guideline.md` if it exists** (CRITICAL)
 - [ ] Analyze application and dependencies
 - [ ] Identify build vs runtime requirements
 - [ ] Check for existing Docker configurations
@@ -838,7 +838,7 @@ CMD ["node", "app.js"]
 
 ## Key Principles
 
-1. **Project Guidelines First**: Always read and follow `.claude/design.md`
+1. **Project Guidelines First**: Always read and follow `.claude/docs/guideline.md`
 2. **Security**: Run as non-root, minimize attack surface, scan for vulnerabilities
 3. **Optimization**: Multi-stage builds, layer caching, minimal base images
 4. **Fail-fast**: Use `set -euo pipefail` in shell commands

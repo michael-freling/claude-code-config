@@ -19,25 +19,25 @@ Use this skill when:
 
 ### 0. Read Project Design Documentation
 
-**CRITICAL FIRST STEP: Always check for and read `.claude/design.md`**
+**CRITICAL FIRST STEP: Always check for and read `.claude/docs/guideline.md`**
 
 Before starting any implementation:
 
-1. **Look for `.claude/design.md` in the current directory**
+1. **Look for `.claude/docs/guideline.md` in the current directory**
    - If found, read it thoroughly
    - This contains project-specific coding standards, conventions, and architecture
    - Follow these guidelines strictly as they override general best practices
 
 2. **For monorepos or subprojects:**
-   - Check for `.claude/design.md` in the subproject root
+   - Check for `.claude/docs/guideline.md` in the subproject root
    - Also check the repository root for overall standards
    - Subproject-specific rules take precedence over repository-level rules
 
-3. **If no design.md exists:**
-   - Consider running `/document-design` to create one
+3. **If no guideline.md exists:**
+   - Consider running `/document-guideline` to create one
    - Or proceed with analyzing the codebase manually
 
-**What to extract from design.md:**
+**What to extract from guideline.md:**
 - Project-specific naming conventions
 - Directory structure and organization rules
 - Error handling patterns
@@ -70,7 +70,7 @@ Before starting any implementation:
 - **Minimal Public API**: Keep functions and classes private/unexported unless explicitly needed for encapsulation
 
 ### Consistency
-- Follow project-specific patterns from `.claude/design.md`
+- Follow project-specific patterns from `.claude/docs/guideline.md`
 - Match existing code style and naming conventions
 - Use consistent error handling patterns throughout
 
@@ -731,7 +731,7 @@ Example tsconfig.json for modern projects:
 ## Implementation Strategy
 
 **Step 1: Review Project Guidelines**
-- Read `.claude/design.md` if it exists (MANDATORY)
+- Read `.claude/docs/guideline.md` if it exists (MANDATORY)
 - Extract project-specific patterns
 - Note architecture constraints
 - Identify preferred libraries
@@ -910,7 +910,7 @@ test.each([
 ## Checklist
 
 ### Before Starting
-- [ ] **Read `.claude/design.md` if it exists** (CRITICAL)
+- [ ] **Read `.claude/docs/guideline.md` if it exists** (CRITICAL)
 - [ ] Extract project-specific conventions
 - [ ] Analyze project structure (check for pnpm-lock.yaml, package.json)
 - [ ] Search for similar implementations
@@ -940,7 +940,7 @@ test.each([
 ## Key Principles
 
 1. **Simplicity First**: DRY principle, early returns, minimal public API, prefer breaking changes for simplicity
-2. **Project Guidelines**: Always read and follow `.claude/design.md`
+2. **Project Guidelines**: Always read and follow `.claude/docs/guideline.md`
 3. **Type Safety**: Strict mode, no `any`, use `unknown`, leverage advanced types
 4. **Fail-Fast**: Early validation, never swallow errors, meaningful error messages
 5. **Consistency**: Match existing code style and patterns from design.md

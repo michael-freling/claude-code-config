@@ -20,25 +20,25 @@ Use this skill when:
 
 ### 0. Read Project Design Documentation
 
-**CRITICAL FIRST STEP: Always check for and read `.claude/design.md`**
+**CRITICAL FIRST STEP: Always check for and read `.claude/docs/guideline.md`**
 
 Before starting any implementation:
 
-1. **Look for `.claude/design.md` in the current directory**
+1. **Look for `.claude/docs/guideline.md` in the current directory**
    - If found, read it thoroughly
    - This contains project-specific coding standards, conventions, and architecture
    - Follow these guidelines strictly as they override general best practices
 
 2. **For monorepos or subprojects:**
-   - Check for `.claude/design.md` in the subproject root
+   - Check for `.claude/docs/guideline.md` in the subproject root
    - Also check the repository root for overall standards
    - Subproject-specific rules take precedence over repository-level rules
 
-3. **If no design.md exists:**
-   - Consider running `/document-design` to create one
+3. **If no guideline.md exists:**
+   - Consider running `/document-guideline` to create one
    - Or proceed with analyzing the codebase manually
 
-**What to extract from design.md:**
+**What to extract from guideline.md:**
 - Project-specific naming conventions
 - Directory structure and organization rules
 - Error handling patterns
@@ -73,7 +73,7 @@ Before starting any implementation:
    - Break backward compatibility when it improves code quality (unless explicitly told otherwise)
 
 2. **Consistency**
-   - Follow patterns in `.claude/design.md` when it exists
+   - Follow patterns in `.claude/docs/guideline.md` when it exists
    - Match existing codebase conventions
 
 3. **Fail-fast**
@@ -1367,7 +1367,7 @@ func NewService(client ExternalClient, db Database) *Service {
 ## Implementation Strategy
 
 **Step 1: Review Project Guidelines**
-- Read `.claude/design.md` if it exists (MANDATORY)
+- Read `.claude/docs/guideline.md` if it exists (MANDATORY)
 - Extract project-specific patterns
 - Note architecture constraints
 
@@ -1546,7 +1546,7 @@ type UserFinder interface {
 ## Checklist
 
 ### Before Starting
-- [ ] **Read `.claude/design.md` if it exists** (CRITICAL)
+- [ ] **Read `.claude/docs/guideline.md` if it exists** (CRITICAL)
 - [ ] Extract project-specific conventions
 - [ ] Analyze project structure and go.mod
 - [ ] Search for similar implementations
@@ -1573,7 +1573,7 @@ type UserFinder interface {
 
 ## Key Principles
 
-1. **Project Guidelines First**: Always read and follow `.claude/design.md`
+1. **Project Guidelines First**: Always read and follow `.claude/docs/guideline.md`
 2. **Simplicity**: Write clear, idiomatic Go code (DRY, prefer breaking backward compatibility)
 3. **Error Handling**: Handle all errors explicitly - fail-fast, never ignore errors
 4. **Interfaces**: Keep them small (1-3 methods) and define at point of use

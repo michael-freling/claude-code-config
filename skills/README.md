@@ -6,19 +6,19 @@ This directory contains custom skills for Claude Code to help with common develo
 
 For best results, follow this workflow when working on a project:
 
-1. **First time in a project**: Run `/document-design` to analyze and document the codebase
-2. **Before implementing features**: Review `.claude/design.md` to understand conventions
+1. **First time in a project**: Run `/document-guideline` to analyze and document the codebase
+2. **Before implementing features**: Review `.claude/docs/guideline.md` to understand conventions
 3. **When implementing**: Claude Code will automatically use language-specific skills based on your task
 
 ```
-/document-design → Review .claude/design.md → Implement (skills auto-activate)
+/document-guideline → Review .claude/docs/guideline.md → Implement (skills auto-activate)
 ```
 
 ## Available Commands
 
-### /document-design
+### /document-guideline
 
-Analyzes your codebase and creates `.claude/design.md` documenting:
+Analyzes your codebase and creates `.claude/docs/guideline.md` documenting:
 - Coding standards and naming conventions
 - Architecture patterns and directory structure
 - Best practices used in the project
@@ -27,7 +27,7 @@ Analyzes your codebase and creates `.claude/design.md` documenting:
 
 **Usage:**
 ```
-/document-design
+/document-guideline
 ```
 
 **When to use:**
@@ -61,7 +61,7 @@ Applies changes across multiple subprojects in a monorepo with planning, paralle
 
 ## Available Skills
 
-Skills are automatically activated by Claude Code when working with specific languages or frameworks. Each skill reads and follows `.claude/design.md` if it exists, ensuring all implementations match project-specific conventions.
+Skills are automatically activated by Claude Code when working with specific languages or frameworks. Each skill reads and follows `.claude/docs/guideline.md` if it exists, ensuring all implementations match project-specific conventions.
 
 ### typescript
 
@@ -172,6 +172,6 @@ To create a new skill:
 
 **Tips:**
 - Use clear, specific descriptions so Claude knows when to activate the skill
-- Reference `.claude/design.md` in your skill for project-specific patterns
+- Reference `.claude/docs/guideline.md` in your skill for project-specific patterns
 - Keep skills focused on a single capability or language
 - Test that the description triggers appropriate activation

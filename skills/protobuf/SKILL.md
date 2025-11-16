@@ -21,25 +21,25 @@ Use this skill when:
 
 ### 0. Read Project Design Documentation
 
-**CRITICAL FIRST STEP: Always check for and read `.claude/design.md`**
+**CRITICAL FIRST STEP: Always check for and read `.claude/docs/guideline.md`**
 
 Before starting any implementation:
 
-1. **Look for `.claude/design.md` in the current directory**
+1. **Look for `.claude/docs/guideline.md` in the current directory**
    - If found, read it thoroughly
    - This contains project-specific coding standards, conventions, and architecture
    - Follow these guidelines strictly as they override general best practices
 
 2. **For monorepos or subprojects:**
-   - Check for `.claude/design.md` in the subproject root
+   - Check for `.claude/docs/guideline.md` in the subproject root
    - Also check the repository root for overall standards
    - Subproject-specific rules take precedence over repository-level rules
 
-3. **If no design.md exists:**
-   - Consider running `/document-design` to create one
+3. **If no guideline.md exists:**
+   - Consider running `/document-guideline` to create one
    - Or proceed with analyzing the codebase manually
 
-**What to extract from design.md:**
+**What to extract from guideline.md:**
 - Proto package naming conventions
 - Field numbering conventions
 - Service design patterns
@@ -484,7 +484,7 @@ message User {
 ## Implementation Strategy
 
 **Step 1: Review Project Guidelines**
-- Read `.claude/design.md` if it exists (MANDATORY)
+- Read `.claude/docs/guideline.md` if it exists (MANDATORY)
 - Extract proto-specific conventions
 - Note versioning strategy
 - Check field numbering patterns
@@ -701,7 +701,7 @@ service UserService {
 ## Checklist
 
 ### Before Starting
-- [ ] **Read `.claude/design.md` if it exists** (CRITICAL)
+- [ ] **Read `.claude/docs/guideline.md` if it exists** (CRITICAL)
 - [ ] Extract proto-specific conventions
 - [ ] Review existing .proto files
 - [ ] Identify versioning strategy
@@ -727,7 +727,7 @@ service UserService {
 
 ## Key Principles Summary
 
-1. **Project Guidelines First**: Always read and follow `.claude/design.md` (MANDATORY)
+1. **Project Guidelines First**: Always read and follow `.claude/docs/guideline.md` (MANDATORY)
 2. **Simplicity & DRY**: Reuse existing messages and patterns; avoid creating redundant definitions
 3. **Backward Compatibility**: NEVER reuse field numbers or change types; design for evolution
 4. **Fail-Fast**: Use validation, type safety, and strict linting to catch errors early
