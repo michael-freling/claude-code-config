@@ -359,6 +359,152 @@ Table-driven tests are the idiomatic Go way to write tests and should be used fo
 - Use t.Helper() for test helpers
 - Test exported APIs, not implementation details
 - Use clear field names in test case structs
+- **CRITICAL: Define ALL test inputs as struct fields, not as function arguments**
+- Avoid passing setup functions or configuration as test case fields
+- Use consistent setup/teardown patterns across all test cases
+
+**Consistency in Test Structure:**
+
+```go
+// Bad: Using setup function as test case field
+func TestUserService_ProcessUser(t *testing.T) {
+    tests := []struct {
+        name    string
+        setup   func(*testing.T) (*User, *mockDB)  // Don't do this
+        want    string
+        wantErr bool
+    }{
+        {
+            name: "valid user",
+            setup: func(t *testing.T) (*User, *mockDB) {
+                user := &User{ID: "123", Name: "John"}
+                db := &mockDB{users: map[string]*User{"123": user}}
+                return user, db
+            },
+            want:    "success",
+            wantErr: false,
+        },
+    }
+    // ... test implementation
+}
+
+// Good: Define all inputs as struct fields
+func TestUserService_ProcessUser(t *testing.T) {
+    tests := []struct {
+        name    string
+        userID  string
+        dbUsers map[string]*User  // All setup data as fields
+        dbError error
+        want    string
+        wantErr bool
+    }{
+        {
+            name:   "valid user",
+            userID: "123",
+            dbUsers: map[string]*User{
+                "123": {ID: "123", Name: "John"},
+            },
+            dbError: nil,
+            want:    "success",
+            wantErr: false,
+        },
+        {
+            name:    "user not found",
+            userID:  "999",
+            dbUsers: map[string]*User{},
+            dbError: nil,
+            want:    "",
+            wantErr: true,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // Create mock using the struct fields
+            mockDB := &mockDB{
+                users: tt.dbUsers,
+                err:   tt.dbError,
+            }
+            service := NewUserService(mockDB)
+
+            got, err := service.ProcessUser(context.Background(), tt.userID)
+            if (err != nil) != tt.wantErr {
+                t.Errorf("ProcessUser() error = %v, wantErr %v", err, tt.wantErr)
+                return
+            }
+            if got != tt.want {
+                t.Errorf("ProcessUser() = %v, want %v", got, tt.want)
+            }
+        })
+    }
+}
+
+// Bad: Different setup methods per test case
+func TestRepository_Save(t *testing.T) {
+    // Test case 1 setup
+    db1 := setupDB(t)
+    user1 := createUser("John")
+    err := repo.Save(db1, user1)
+    // assertions...
+
+    // Test case 2 setup - completely different pattern
+    mockDB := &mockDB{}
+    testData := loadTestData()
+    err = repo.Save(mockDB, testData)
+    // assertions...
+}
+
+// Good: Consistent structure across all test cases
+func TestRepository_Save(t *testing.T) {
+    tests := []struct {
+        name    string
+        user    *User
+        dbState map[string]*User  // Initial DB state
+        dbError error             // Error to simulate
+        wantErr bool
+    }{
+        {
+            name: "new user",
+            user: &User{ID: "123", Name: "John"},
+            dbState: map[string]*User{},
+            dbError: nil,
+            wantErr: false,
+        },
+        {
+            name: "duplicate user",
+            user: &User{ID: "123", Name: "John"},
+            dbState: map[string]*User{
+                "123": {ID: "123", Name: "Existing"},
+            },
+            dbError: nil,
+            wantErr: true,
+        },
+        {
+            name: "database error",
+            user: &User{ID: "456", Name: "Jane"},
+            dbState: map[string]*User{},
+            dbError: errors.New("connection failed"),
+            wantErr: true,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // Consistent setup pattern for all test cases
+            mockDB := &mockDB{
+                users: tt.dbState,
+                err:   tt.dbError,
+            }
+            repo := NewRepository(mockDB)
+
+            err := repo.Save(context.Background(), tt.user)
+            if (err != nil) != tt.wantErr {
+                t.Errorf("Save() error = %v, wantErr %v", err, tt.wantErr)
+            }
+        })
+    }
+}
+```
 
 **Table-Driven Test Examples:**
 

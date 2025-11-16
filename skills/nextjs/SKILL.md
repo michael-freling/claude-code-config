@@ -357,7 +357,7 @@ export async function PATCH(
 
 ### Testing
 
-**CRITICAL: Always use table-driven tests (test.each) as the primary testing approach.**
+**CRITICAL: Always use table-driven tests as the primary testing approach.**
 
 Table-driven tests provide the same benefits in Next.js projects:
 - Reduce code duplication
@@ -366,14 +366,53 @@ Table-driven tests provide the same benefits in Next.js projects:
 - Ensure consistent test structure
 - Make test coverage gaps obvious
 
+**IMPORTANT: Separate happy path and error path test cases**
+- Create separate test case arrays for success and error scenarios
+- Use `successTestCases` for happy path scenarios
+- Use `errorTestCases` for error scenarios
+- This separation improves test readability and maintenance
+- Makes test intent clearer
+
 **Use table-driven tests for:**
 - Component rendering with different props
 - Utility functions with multiple test cases
 - Server Actions with various inputs
 - API route handlers
 - Edge cases and error scenarios
+- E2E tests with Cypress
 
-**Table-Driven Test Examples for Next.js:**
+**Table-Driven Test Pattern:**
+
+```typescript
+// Good: Separate happy path and error path test cases
+describe('Feature', () => {
+  // Success scenarios
+  const successTestCases = [
+    { name: 'valid case 1', input: '...', expected: '...' },
+    { name: 'valid case 2', input: '...', expected: '...' },
+  ];
+
+  successTestCases.forEach((testCase) => {
+    it(testCase.name, () => {
+      // test implementation
+    });
+  });
+
+  // Error scenarios
+  const errorTestCases = [
+    { name: 'invalid case 1', input: '...', expectedError: '...' },
+    { name: 'invalid case 2', input: '...', expectedError: '...' },
+  ];
+
+  errorTestCases.forEach((testCase) => {
+    it(testCase.name, () => {
+      // test implementation
+    });
+  });
+});
+```
+
+**Unit and Integration Test Examples (Jest/Vitest):**
 
 ```typescript
 // Good: Testing component rendering with different props
@@ -381,40 +420,58 @@ import { render, screen } from '@testing-library/react';
 import { Button } from './Button';
 
 describe('Button', () => {
-  test.each([
-    { variant: 'primary', expectedClass: 'btn-primary' },
-    { variant: 'secondary', expectedClass: 'btn-secondary' },
-    { variant: 'danger', expectedClass: 'btn-danger' },
-  ])('renders with $variant variant', ({ variant, expectedClass }) => {
-    render(<Button variant={variant}>Click me</Button>);
-    const button = screen.getByRole('button');
-    expect(button).toHaveClass(expectedClass);
+  const successTestCases = [
+    { name: 'renders primary variant', variant: 'primary', expectedClass: 'btn-primary' },
+    { name: 'renders secondary variant', variant: 'secondary', expectedClass: 'btn-secondary' },
+    { name: 'renders danger variant', variant: 'danger', expectedClass: 'btn-danger' },
+  ];
+
+  successTestCases.forEach((testCase) => {
+    it(testCase.name, () => {
+      render(<Button variant={testCase.variant}>Click me</Button>);
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass(testCase.expectedClass);
+    });
   });
 });
 
-// Good: Testing server actions
+// Good: Testing server actions with separated success/error cases
 import { createUser } from './actions';
 
 describe('createUser', () => {
-  test.each([
+  const successTestCases = [
     {
-      name: 'valid user data',
+      name: 'creates user with valid data',
       formData: new FormData([['name', 'John'], ['email', 'john@example.com']]),
       expected: { success: true },
     },
+  ];
+
+  successTestCases.forEach((testCase) => {
+    it(testCase.name, async () => {
+      const result = await createUser(testCase.formData);
+      expect(result).toMatchObject(testCase.expected);
+    });
+  });
+
+  const errorTestCases = [
     {
-      name: 'missing name',
+      name: 'rejects missing name',
       formData: new FormData([['email', 'john@example.com']]),
-      expected: { success: false, error: expect.any(Object) },
+      expectedError: { success: false, error: expect.any(Object) },
     },
     {
-      name: 'invalid email',
+      name: 'rejects invalid email',
       formData: new FormData([['name', 'John'], ['email', 'invalid']]),
-      expected: { success: false, error: expect.any(Object) },
+      expectedError: { success: false, error: expect.any(Object) },
     },
-  ])('$name', async ({ formData, expected }) => {
-    const result = await createUser(formData);
-    expect(result).toMatchObject(expected);
+  ];
+
+  errorTestCases.forEach((testCase) => {
+    it(testCase.name, async () => {
+      const result = await createUser(testCase.formData);
+      expect(result).toMatchObject(testCase.expectedError);
+    });
   });
 });
 
@@ -422,29 +479,51 @@ describe('createUser', () => {
 import { formatPrice } from '@/lib/utils';
 
 describe('formatPrice', () => {
-  test.each([
-    { amount: 1000, currency: 'USD', expected: '$10.00' },
-    { amount: 2550, currency: 'USD', expected: '$25.50' },
-    { amount: 0, currency: 'USD', expected: '$0.00' },
-    { amount: 1000, currency: 'EUR', expected: '€10.00' },
-  ])('formats $amount cents as $expected', ({ amount, currency, expected }) => {
-    expect(formatPrice(amount, currency)).toBe(expected);
+  const successTestCases = [
+    { name: 'formats USD cents correctly', amount: 1000, currency: 'USD', expected: '$10.00' },
+    { name: 'formats USD with decimals', amount: 2550, currency: 'USD', expected: '$25.50' },
+    { name: 'formats zero amount', amount: 0, currency: 'USD', expected: '$0.00' },
+    { name: 'formats EUR cents correctly', amount: 1000, currency: 'EUR', expected: '€10.00' },
+  ];
+
+  successTestCases.forEach((testCase) => {
+    it(testCase.name, () => {
+      expect(formatPrice(testCase.amount, testCase.currency)).toBe(testCase.expected);
+    });
   });
 });
 
-// Good: Testing API routes
+// Good: Testing API routes with separated success/error cases
 import { GET, POST } from '@/app/api/users/route';
 import { NextRequest } from 'next/server';
 
 describe('/api/users', () => {
   describe('POST', () => {
-    test.each([
+    const successTestCases = [
       {
         name: 'creates user successfully',
         body: { name: 'John Doe', email: 'john@example.com' },
         expectedStatus: 200,
         expectedBody: { success: true },
       },
+    ];
+
+    successTestCases.forEach((testCase) => {
+      it(testCase.name, async () => {
+        const request = new NextRequest('http://localhost/api/users', {
+          method: 'POST',
+          body: JSON.stringify(testCase.body),
+        });
+
+        const response = await POST(request);
+        expect(response.status).toBe(testCase.expectedStatus);
+
+        const data = await response.json();
+        expect(data).toMatchObject(testCase.expectedBody);
+      });
+    });
+
+    const errorTestCases = [
       {
         name: 'rejects invalid email',
         body: { name: 'John Doe', email: 'invalid' },
@@ -457,17 +536,21 @@ describe('/api/users', () => {
         expectedStatus: 400,
         expectedBody: { error: expect.any(String) },
       },
-    ])('$name', async ({ body, expectedStatus, expectedBody }) => {
-      const request = new NextRequest('http://localhost/api/users', {
-        method: 'POST',
-        body: JSON.stringify(body),
+    ];
+
+    errorTestCases.forEach((testCase) => {
+      it(testCase.name, async () => {
+        const request = new NextRequest('http://localhost/api/users', {
+          method: 'POST',
+          body: JSON.stringify(testCase.body),
+        });
+
+        const response = await POST(request);
+        expect(response.status).toBe(testCase.expectedStatus);
+
+        const data = await response.json();
+        expect(data).toMatchObject(testCase.expectedBody);
       });
-
-      const response = await POST(request);
-      expect(response.status).toBe(expectedStatus);
-
-      const data = await response.json();
-      expect(data).toMatchObject(expectedBody);
     });
   });
 });
@@ -477,18 +560,22 @@ import { renderHook, act } from '@testing-library/react';
 import { useCounter } from '@/hooks/useCounter';
 
 describe('useCounter', () => {
-  test.each([
-    { initialValue: 0, incrementBy: 1, expected: 1 },
-    { initialValue: 5, incrementBy: 2, expected: 7 },
-    { initialValue: 10, incrementBy: -3, expected: 7 },
-  ])('increments from $initialValue by $incrementBy', ({ initialValue, incrementBy, expected }) => {
-    const { result } = renderHook(() => useCounter(initialValue));
+  const successTestCases = [
+    { name: 'increments from 0 by 1', initialValue: 0, incrementBy: 1, expected: 1 },
+    { name: 'increments from 5 by 2', initialValue: 5, incrementBy: 2, expected: 7 },
+    { name: 'decrements from 10 by 3', initialValue: 10, incrementBy: -3, expected: 7 },
+  ];
 
-    act(() => {
-      result.current.increment(incrementBy);
+  successTestCases.forEach((testCase) => {
+    it(testCase.name, () => {
+      const { result } = renderHook(() => useCounter(testCase.initialValue));
+
+      act(() => {
+        result.current.increment(testCase.incrementBy);
+      });
+
+      expect(result.current.count).toBe(testCase.expected);
     });
-
-    expect(result.current.count).toBe(expected);
   });
 });
 
@@ -498,40 +585,58 @@ import userEvent from '@testing-library/user-event';
 import { SearchForm } from './SearchForm';
 
 describe('SearchForm', () => {
-  test.each([
+  const successTestCases = [
     {
       name: 'submits valid search query',
       input: 'test query',
-      shouldSubmit: true,
-    },
-    {
-      name: 'does not submit empty query',
-      input: '',
-      shouldSubmit: false,
+      expectedValue: 'test query',
     },
     {
       name: 'trims whitespace from query',
       input: '  test query  ',
-      shouldSubmit: true,
       expectedValue: 'test query',
     },
-  ])('$name', async ({ input, shouldSubmit, expectedValue }) => {
-    const onSubmit = jest.fn();
-    const user = userEvent.setup();
+  ];
 
-    render(<SearchForm onSubmit={onSubmit} />);
+  successTestCases.forEach((testCase) => {
+    it(testCase.name, async () => {
+      const onSubmit = jest.fn();
+      const user = userEvent.setup();
 
-    const searchInput = screen.getByRole('textbox');
-    const submitButton = screen.getByRole('button');
+      render(<SearchForm onSubmit={onSubmit} />);
 
-    await user.type(searchInput, input);
-    await user.click(submitButton);
+      const searchInput = screen.getByRole('textbox');
+      const submitButton = screen.getByRole('button');
 
-    if (shouldSubmit) {
-      expect(onSubmit).toHaveBeenCalledWith(expectedValue || input);
-    } else {
+      await user.type(searchInput, testCase.input);
+      await user.click(submitButton);
+
+      expect(onSubmit).toHaveBeenCalledWith(testCase.expectedValue);
+    });
+  });
+
+  const errorTestCases = [
+    {
+      name: 'does not submit empty query',
+      input: '',
+    },
+  ];
+
+  errorTestCases.forEach((testCase) => {
+    it(testCase.name, async () => {
+      const onSubmit = jest.fn();
+      const user = userEvent.setup();
+
+      render(<SearchForm onSubmit={onSubmit} />);
+
+      const searchInput = screen.getByRole('textbox');
+      const submitButton = screen.getByRole('button');
+
+      await user.type(searchInput, testCase.input);
+      await user.click(submitButton);
+
       expect(onSubmit).not.toHaveBeenCalled();
-    }
+    });
   });
 });
 
@@ -539,7 +644,7 @@ describe('SearchForm', () => {
 import { generateMetadata } from '@/app/users/[id]/page';
 
 describe('generateMetadata', () => {
-  test.each([
+  const successTestCases = [
     {
       name: 'generates metadata for existing user',
       params: { id: '123' },
@@ -549,6 +654,21 @@ describe('generateMetadata', () => {
         description: 'Developer',
       },
     },
+  ];
+
+  successTestCases.forEach((testCase) => {
+    it(testCase.name, async () => {
+      // Mock the getUserById function
+      jest.mock('@/lib/api', () => ({
+        getUserById: jest.fn().mockResolvedValue(testCase.mockUser),
+      }));
+
+      const metadata = await generateMetadata({ params: testCase.params });
+      expect(metadata).toMatchObject(testCase.expected);
+    });
+  });
+
+  const errorTestCases = [
     {
       name: 'generates metadata for non-existent user',
       params: { id: '999' },
@@ -558,31 +678,291 @@ describe('generateMetadata', () => {
         description: undefined,
       },
     },
-  ])('$name', async ({ params, mockUser, expected }) => {
-    // Mock the getUserById function
-    jest.mock('@/lib/api', () => ({
-      getUserById: jest.fn().mockResolvedValue(mockUser),
-    }));
+  ];
 
-    const metadata = await generateMetadata({ params });
-    expect(metadata).toMatchObject(expected);
+  errorTestCases.forEach((testCase) => {
+    it(testCase.name, async () => {
+      // Mock the getUserById function
+      jest.mock('@/lib/api', () => ({
+        getUserById: jest.fn().mockResolvedValue(testCase.mockUser),
+      }));
+
+      const metadata = await generateMetadata({ params: testCase.params });
+      expect(metadata).toMatchObject(testCase.expected);
+    });
+  });
+});
+```
+
+**E2E Testing with Cypress:**
+
+Cypress tests should also use the table-driven pattern with separated success and error cases:
+
+```typescript
+// cypress/e2e/login.cy.ts
+describe('Login Page', () => {
+  beforeEach(() => {
+    cy.visit('/login');
+  });
+
+  // Success scenarios
+  const successTestCases = [
+    {
+      name: 'successfully logs in with valid credentials',
+      email: 'user@example.com',
+      password: 'password123',
+      expectedUrl: '/dashboard',
+      expectedMessage: 'Welcome back!',
+    },
+    {
+      name: 'remembers user when "Remember me" is checked',
+      email: 'user@example.com',
+      password: 'password123',
+      rememberMe: true,
+      expectedUrl: '/dashboard',
+    },
+  ];
+
+  successTestCases.forEach((testCase) => {
+    it(testCase.name, () => {
+      cy.get('[data-testid="email-input"]').type(testCase.email);
+      cy.get('[data-testid="password-input"]').type(testCase.password);
+
+      if (testCase.rememberMe) {
+        cy.get('[data-testid="remember-me-checkbox"]').check();
+      }
+
+      cy.get('[data-testid="submit-button"]').click();
+
+      cy.url().should('include', testCase.expectedUrl);
+
+      if (testCase.expectedMessage) {
+        cy.contains(testCase.expectedMessage).should('be.visible');
+      }
+    });
+  });
+
+  // Error scenarios
+  const errorTestCases = [
+    {
+      name: 'shows error with invalid email',
+      email: 'invalid-email',
+      password: 'password123',
+      expectedError: 'Please enter a valid email address',
+    },
+    {
+      name: 'shows error with empty password',
+      email: 'user@example.com',
+      password: '',
+      expectedError: 'Password is required',
+    },
+    {
+      name: 'shows error with wrong credentials',
+      email: 'user@example.com',
+      password: 'wrongpassword',
+      expectedError: 'Invalid email or password',
+    },
+    {
+      name: 'shows error with unverified account',
+      email: 'unverified@example.com',
+      password: 'password123',
+      expectedError: 'Please verify your email address',
+    },
+  ];
+
+  errorTestCases.forEach((testCase) => {
+    it(testCase.name, () => {
+      if (testCase.email) {
+        cy.get('[data-testid="email-input"]').type(testCase.email);
+      }
+
+      if (testCase.password) {
+        cy.get('[data-testid="password-input"]').type(testCase.password);
+      }
+
+      cy.get('[data-testid="submit-button"]').click();
+
+      cy.contains(testCase.expectedError).should('be.visible');
+      cy.url().should('include', '/login'); // Should stay on login page
+    });
+  });
+});
+
+// cypress/e2e/user-profile.cy.ts
+describe('User Profile Page', () => {
+  beforeEach(() => {
+    cy.login('user@example.com', 'password123'); // Custom command
+  });
+
+  const successTestCases = [
+    {
+      name: 'updates profile name successfully',
+      field: 'name',
+      value: 'John Smith',
+      expectedMessage: 'Profile updated successfully',
+    },
+    {
+      name: 'updates profile bio successfully',
+      field: 'bio',
+      value: 'Software developer',
+      expectedMessage: 'Profile updated successfully',
+    },
+    {
+      name: 'updates avatar successfully',
+      field: 'avatar',
+      file: 'avatar.jpg',
+      expectedMessage: 'Avatar updated successfully',
+    },
+  ];
+
+  successTestCases.forEach((testCase) => {
+    it(testCase.name, () => {
+      cy.visit('/profile/edit');
+
+      if (testCase.file) {
+        cy.get(`[data-testid="${testCase.field}-input"]`).selectFile(
+          `cypress/fixtures/${testCase.file}`
+        );
+      } else {
+        cy.get(`[data-testid="${testCase.field}-input"]`).clear().type(testCase.value);
+      }
+
+      cy.get('[data-testid="save-button"]').click();
+
+      cy.contains(testCase.expectedMessage).should('be.visible');
+    });
+  });
+
+  const errorTestCases = [
+    {
+      name: 'rejects name that is too long',
+      field: 'name',
+      value: 'a'.repeat(101),
+      expectedError: 'Name must be less than 100 characters',
+    },
+    {
+      name: 'rejects empty name',
+      field: 'name',
+      value: '',
+      expectedError: 'Name is required',
+    },
+    {
+      name: 'rejects invalid file type for avatar',
+      field: 'avatar',
+      file: 'document.pdf',
+      expectedError: 'Please upload an image file',
+    },
+  ];
+
+  errorTestCases.forEach((testCase) => {
+    it(testCase.name, () => {
+      cy.visit('/profile/edit');
+
+      if (testCase.file) {
+        cy.get(`[data-testid="${testCase.field}-input"]`).selectFile(
+          `cypress/fixtures/${testCase.file}`,
+          { force: true }
+        );
+      } else {
+        cy.get(`[data-testid="${testCase.field}-input"]`).clear();
+        if (testCase.value) {
+          cy.get(`[data-testid="${testCase.field}-input"]`).type(testCase.value);
+        }
+      }
+
+      cy.get('[data-testid="save-button"]').click();
+
+      cy.contains(testCase.expectedError).should('be.visible');
+    });
+  });
+});
+
+// cypress/e2e/api-integration.cy.ts
+describe('API Integration', () => {
+  const successTestCases = [
+    {
+      name: 'fetches user data successfully',
+      endpoint: '/api/users/123',
+      method: 'GET',
+      expectedStatus: 200,
+      expectedBody: { id: '123', name: 'John Doe' },
+    },
+    {
+      name: 'creates new post successfully',
+      endpoint: '/api/posts',
+      method: 'POST',
+      body: { title: 'Test Post', content: 'Test content' },
+      expectedStatus: 201,
+    },
+  ];
+
+  successTestCases.forEach((testCase) => {
+    it(testCase.name, () => {
+      cy.request({
+        method: testCase.method,
+        url: testCase.endpoint,
+        body: testCase.body,
+      }).then((response) => {
+        expect(response.status).to.eq(testCase.expectedStatus);
+
+        if (testCase.expectedBody) {
+          expect(response.body).to.include(testCase.expectedBody);
+        }
+      });
+    });
+  });
+
+  const errorTestCases = [
+    {
+      name: 'returns 404 for non-existent user',
+      endpoint: '/api/users/999',
+      method: 'GET',
+      expectedStatus: 404,
+    },
+    {
+      name: 'returns 400 for invalid post data',
+      endpoint: '/api/posts',
+      method: 'POST',
+      body: { title: '' }, // Invalid: empty title
+      expectedStatus: 400,
+    },
+    {
+      name: 'returns 401 for unauthorized request',
+      endpoint: '/api/private-data',
+      method: 'GET',
+      expectedStatus: 401,
+    },
+  ];
+
+  errorTestCases.forEach((testCase) => {
+    it(testCase.name, () => {
+      cy.request({
+        method: testCase.method,
+        url: testCase.endpoint,
+        body: testCase.body,
+        failOnStatusCode: false, // Don't fail on 4xx/5xx
+      }).then((response) => {
+        expect(response.status).to.eq(testCase.expectedStatus);
+      });
+    });
   });
 });
 ```
 
 **When NOT to use table-driven tests:**
-- Single test case with complex mocking
+- Single test case with complex mocking or setup
 - Visual snapshot tests
-- E2E tests with Playwright/Cypress
 - Tests where the table structure becomes too complex
+- Tests with very different setup/teardown requirements
 
 **Best Practices:**
-1. Use descriptive test case names (use the `name` field or `$variable` syntax)
-2. Keep test cases focused and related
-3. Use objects for complex test cases, arrays for simple ones
-4. Mock external dependencies consistently across test cases
-5. Test both successful and error scenarios
-6. Consider using React Testing Library for component tests
+1. **Always separate success and error test cases** into different arrays
+2. Use descriptive test case names with the `name` field
+3. Keep test cases focused and related
+4. Use objects for test cases (easier to understand and maintain)
+5. Mock external dependencies consistently across test cases
+6. In Cypress tests, use `data-testid` attributes for reliable element selection
+7. For API tests, use `failOnStatusCode: false` when testing error responses
 
 ## Implementation Strategy
 
@@ -688,9 +1068,15 @@ npm run build
 # Production
 npm start
 
-# Tests
+# Unit/Integration Tests
 npm test
 npm run test:watch
+
+# E2E Tests with Cypress
+npm run cypress:open     # Interactive mode
+npm run cypress:run      # Headless mode
+npx cypress run          # Direct run
+npx cypress open         # Direct interactive mode
 ```
 
 ## Common Pitfalls to Avoid
@@ -760,14 +1146,15 @@ export default async function Page() {
 - [ ] Use Next.js optimization features (Image, Link)
 - [ ] Follow existing naming conventions
 - [ ] Add loading and error states
-- [ ] Write table-driven tests alongside code
+- [ ] Write table-driven tests alongside code (separate success/error cases)
 
 ### After Implementation - MUST ALL PASS
 - [ ] Run type checking (`npm run type-check`) - **FIX ALL TYPE ERRORS**
 - [ ] Run linters (`npm run lint`) - **FIX ALL LINT ISSUES**
 - [ ] Build successfully (`npm run build`) - **MUST SUCCEED** (critical for Next.js)
-- [ ] Run tests if available (`npm test`) - **ALL TESTS MUST PASS**
-- [ ] Add/update table-driven tests for new or modified components
+- [ ] Run unit tests if available (`npm test`) - **ALL TESTS MUST PASS**
+- [ ] Run Cypress E2E tests if available (`npm run cypress:run` or `npx cypress run`) - **ALL TESTS MUST PASS**
+- [ ] Add/update table-driven tests (separate success/error cases) for new or modified components
 - [ ] Test in browser - **NO CONSOLE ERRORS**
 - [ ] Verify responsive design
 - [ ] **Iterate until all checks pass** - do not stop until everything is green
@@ -781,4 +1168,4 @@ export default async function Page() {
 4. **Type Safety**: Use TypeScript for all components
 5. **User Experience**: Implement loading and error states
 6. **Performance**: Code split heavy components
-7. **Testing**: Use table-driven tests to ensure components work correctly
+7. **Testing**: Use table-driven tests with separated success/error cases for unit, integration, and E2E tests
