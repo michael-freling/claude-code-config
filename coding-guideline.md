@@ -103,9 +103,11 @@ That includings following guideline:
     2. Prefer to break backward compatibility unless users explicitly mention
 2. Ensure consistency by following a document created by document-guideline Claude Code commands
 3. Ensure fail-fast instead of silently killing errors
-4. Prefer using the latest versions to older versions of modules/packages. But if there is a compatibility problem to the dependency on the latest version, downgrade the major version to support the dependency.
-5. Prefer not to make anything public/exported outside of packages for encapsulation.
-6. Prefer to continue or return early than nesting codes as much as possible. "if is bad, else is worse
+4. Prefer incremental changes to Big-Bang changes.
+5. Prefer using the latest versions to older versions of modules/packages. But if there is a compatibility problem to the dependency on the latest version, downgrade the major version to support the dependency.
+6. Comments MUST BE about WHY not WHAT.
+7. Prefer not to make anything public/exported outside of packages for encapsulation.
+8. Prefer to continue or return early than nesting codes as much as possible. "if is bad, else is worse
 
 
 ### Testing

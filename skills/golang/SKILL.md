@@ -92,6 +92,11 @@ Before starting any implementation:
    - Prefer `if` with early returns over nested `if-else` blocks
    - "if is bad, else is worse"
 
+7. **Comments**
+   - Comments MUST BE about WHY not WHAT
+   - Explain the reasoning behind code decisions, not what the code does
+   - The code itself should be self-explanatory for what it does
+
 ### Code Organization
 
 **Package Structure Best Practices:**

@@ -71,6 +71,7 @@ Before starting any implementation:
 4. **Consistency**: Follow Google's official style guide and project-specific conventions
 5. **Latest Versions**: Use proto3 syntax and well-known types from the latest Protocol Buffers release
 6. **Encapsulation**: Keep message definitions focused and avoid exposing internal implementation details
+7. **Comments**: Comments MUST BE about WHY not WHAT - explain the reasoning behind design decisions, not what the fields represent (field names should be self-explanatory)
 
 ## File Structure and Formatting
 

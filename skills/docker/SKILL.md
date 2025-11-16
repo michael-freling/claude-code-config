@@ -74,6 +74,7 @@ Following general coding guidelines:
 4. **Fail-fast**: Use `set -euo pipefail` in RUN commands with shell scripts
 5. **Latest versions**: Use specific version tags (not :latest) but keep them current
 6. **Encapsulation**: Keep containers single-purpose and minimal
+7. **Comments**: Comments MUST BE about WHY not WHAT - explain reasoning, not what the code does
 
 ### Base Image Selection
 

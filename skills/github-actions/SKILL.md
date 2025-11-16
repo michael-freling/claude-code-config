@@ -173,6 +173,7 @@ Before starting any implementation:
 5. **Latest Versions**: Always use the latest stable versions of actions (e.g., `actions/checkout@v4`, not `@v2`). Pin to major versions (e.g., `@v4`) rather than specific commits for easier maintenance.
 6. **Encapsulation**: Limit what workflows expose. Use appropriate permissions and minimize secrets exposure.
 7. **Early Returns**: Use path filters and conditions to skip unnecessary work early in the workflow.
+8. **Comments**: Comments MUST BE about WHY not WHAT - explain reasoning behind workflow decisions, not what the code does.
 
 ### Workflow Structure
 

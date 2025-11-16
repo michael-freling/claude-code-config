@@ -83,6 +83,11 @@ Before starting any implementation:
 - Prefer latest versions of packages unless compatibility issues arise
 - If dependencies conflict, downgrade major version to maintain compatibility
 
+### Comments
+- **Comments MUST BE about WHY not WHAT** - Explain the reasoning behind the code, not what the code does
+- The code itself should be self-explanatory for what it does through good naming and structure
+- Use comments to explain complex logic, business rules, workarounds, or non-obvious decisions
+
 ## TypeScript Best Practices
 
 ### Package Management

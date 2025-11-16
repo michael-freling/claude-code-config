@@ -78,6 +78,7 @@ Before starting any implementation:
 4. **Latest Versions**: Use latest stable versions of packages (Next.js 15+ with React 19+ as of 2025)
 5. **Encapsulation**: Keep code private/unexported unless necessary
 6. **Early Returns**: Prefer early returns and continue statements over nested conditionals
+7. **Comments**: Comments MUST BE about WHY not WHAT - explain reasoning behind decisions, not what the code does
 
 ### Package Manager Requirements
 

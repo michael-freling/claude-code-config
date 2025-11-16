@@ -85,6 +85,11 @@ Before starting any implementation:
 - Prefer built-in features over external commands when possible
 - Document minimum Bash version requirements if using newer features
 
+### Comments
+- **Comments MUST BE about WHY not WHAT** - Explain the reasoning behind the code, not what the code does
+- The code itself should be self-explanatory for what it does
+- Use comments to explain complex logic, gotchas, or non-obvious decisions
+
 ## Bash Best Practices
 
 ### Strict Mode (Error Handling)
