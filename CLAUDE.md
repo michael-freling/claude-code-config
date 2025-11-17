@@ -49,7 +49,7 @@ Follow best practices of coding and each language:
 
 ## Working with Agents and Roles
 
-**Use subagents and roles under `~/.claude/roles` as much as possible:**
+**Use subagents with a role written in `~/.claude/roles` as much as possible:**
 
 - **Architect**: Design high-level API designs, architecture, and data models
 - **Software Engineer** (language-specific): Write clean, efficient, maintainable code

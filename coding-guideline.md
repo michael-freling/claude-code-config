@@ -18,7 +18,7 @@ The commands and skills have to be created with following documents:
 
 ### Slash command: document-guideline
 
-Create a Claude Code's slash command `document-guideline` by following codes
+Create a Claude Code's slash command `document-guideline` to write a document `.claude/docs/guideline.md` by following codes
 
 1. Architect role agent must analyze codebase and output a guideline
 2. Guideline must include at least an architecture, API designs, data models, design patterns, and coding best practices.
@@ -60,20 +60,16 @@ Each skill has to follow following rules
 ### Slash commands: feature, fix, and refactor
 
 Create following Claude Code commands, to write an instruction to Claude Code for each workflow.
-Each slach command has parameters from a user, which describes what kind of changes the user wants to make. For slash command arguments:
-- Only use $ARGUMENTS (or $1, $2 etc.) without additional explanation
-- The argument-hint in frontmatter is sufficient to guide users
-
-The details of each command is following:
+The overview of each command is following:
 
 1. **feature** command: add or update a feature.
 2. **fix** command: fix a bug. Before starting implementation, reproduce errors at first and understand the root cause of an error.
 4. **refactor** command: refactor the codebase. Before doing the refactoring, cleaning unnecessary codes where agents will change.
 
 **Fix command**
-1. Analyze existing codebase, and understand where an error happens. Architect Agent role must do this.
+1. Analyze existing codebase, and understand where an error happens. Architect Agent must do this.
 2. Reproduce errors and understand the root cause of an error. A software engineer with the right techstack must do this.
-3. Based on the analysis and the root cause of an error, plan changes in order to make some changes in parallel later, and confirm the plan to the user to see if the plan is good. Architect Agent role must do this.
+3. Based on the analysis and the root cause of an error, plan changes in order to make some changes in parallel later, and confirm the plan to the user to see if the plan is good. Architect Agent must do this.
 4. Start implementation. On each task, software engineer agents should implement by following order, on each language or framework with Claude Code Skills.
     a. Updating codes
     b. Verify changes with lint or tests
@@ -81,17 +77,25 @@ The details of each command is following:
 5. Reviewer agent finally reviews changes
 
 **feature and refactor commands**
-1. Analyze existing codebase, plan changes in order to make some changes in parallel later, and confirm the plan to the user to see if the plan is good. Architect Agent role must do this.
+1. Analyze existing codebase, plan changes in order to make some changes in parallel later, and confirm the plan to the user to see if the plan is good. Architect Agent must do this.
 2. Start implementation. On each task, software engineer agents should implement by following order, on each language or framework with Claude Code Skills.
     a. Updating codes
     b. Verify changes with lint or tests
     c. Review changes by different software engineer agent
 3. Reviewer agent finally reviews changes
 
-#### Notes
+#### The details of all commands.
+##### Parameters
 
-Each agent can commit each change on behalf of the user and push it to a remote repository **ONLY WHEN** a user instructs to do so.
-Also, the project may be a single project or monorepo.
+Each slach command has parameters from a user, which describes what kind of changes the user wants to make. For slash command arguments:
+- Only use $ARGUMENTS (or $1, $2 etc.) without additional explanation
+- The argument-hint in frontmatter is sufficient to guide users
+
+##### Notes
+
+- An agent written in `~/.claude/roles` should work on each step as a subagent, and multiple subagents can work in parallel if possible.
+- Each agent can commit each change on behalf of the user and push it to a remote repository **ONLY WHEN** a user instructs to do so.
+- Also, the project may be a single project or monorepo.
 
 ## General coding guideline
 
@@ -101,7 +105,7 @@ That includings following guideline:
 1. Simplicity is the most important. This means
     1. Instead of creating new functions, always plan to update existing codes for reusability. Follow a DRY principal
     2. Prefer to break backward compatibility unless users explicitly mention
-2. Ensure consistency by following a document created by document-guideline Claude Code commands
+2. Ensure consistency by following documents `.claude/docs/guideline.md` on each project directory or subproject directories in a monorepo
 3. Ensure fail-fast instead of silently killing errors
 4. Prefer incremental changes to Big-Bang changes.
 5. Prefer using the latest versions to older versions of modules/packages. But if there is a compatibility problem to the dependency on the latest version, downgrade the major version to support the dependency.
@@ -156,6 +160,6 @@ Create CLAUDE.md based on followings:
 
 1. Keep CLAUDE.md as much simple and concise as possible
 1. Include general coding guideline and only of it. DO NOT INCLUDE language or framework specific guidelines.
-3. Read a guideline file written by a `document-guideline` slash command
+3. Read a guideline file `.claude/docs/guideline.md`
 4. Use subagents and agents' roles as much as possible under ~/.claude/roles
 5. DO NOT INCLUDE descriptions about slash commands
