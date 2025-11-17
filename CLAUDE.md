@@ -47,6 +47,12 @@ Follow best practices of coding and each language:
 
 4. **Define test inputs as test case fields**, not as function arguments
 
+## Git Commit Guidelines
+
+1. **Add ticket numbers in commit titles**
+   - Include issue/ticket numbers (e.g., GitHub issue numbers) in commit messages
+   - Example: "Fix authentication bug (#123)" or "[TICKET-456] Add user profile feature"
+
 ## Working with Agents and Roles
 
 **Use subagents with a role written in `~/.claude/roles` as much as possible:**

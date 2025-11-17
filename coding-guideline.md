@@ -159,7 +159,8 @@ That includings following guideline:
 Create CLAUDE.md based on followings:
 
 1. Keep CLAUDE.md as much simple and concise as possible
-1. Include general coding guideline and only of it. DO NOT INCLUDE language or framework specific guidelines.
-3. Read a guideline file `.claude/docs/guideline.md`
-4. Use subagents and agents' roles as much as possible under ~/.claude/roles
+2. Use subagents with a role written in `~/.claude/roles` as much as possible.
+3. Include general coding guideline and only of it. DO NOT INCLUDE language or framework specific guidelines.
+4. Read a guideline file `.claude/docs/guideline.md`
 5. DO NOT INCLUDE descriptions about slash commands
+6. When running git commit, add a ticket number in a commit title like a github issue number
