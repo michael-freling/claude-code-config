@@ -76,21 +76,19 @@ The overview of each command is following:
 **Fix command**
 1. Analyze existing codebase, and understand where an error happens. Architect Agent must do this.
 2. Reproduce errors and understand the root cause of an error. A software engineer with the right techstack must do this.
-3. Based on the analysis and the root cause of an error, plan changes in order to make some changes in parallel later, and confirm the plan to the user to see if the plan is good. Architect Agent must do this.
-4. Start implementation. On each task, software engineer agents should implement by following order, on each language or framework with Claude Code Skills.
-    a. Updating codes
-    b. Verify changes with lint or tests
-    c. Review changes by different software engineer agent
-5. Reviewer agent finally reviews changes
+3. Based on the analysis and the root cause of an error, plan changes to make changes. Confirm the plan to the user to see if the plan is good.
+
 
 **feature and refactor commands**
-1. Analyze existing codebase, plan changes in order to make some changes in parallel later, and confirm the plan to the user to see if the plan is good. Architect Agent must do this.
-2. Start development with incremeental changes until complete the implementation. For each change, agents must follow these steps:
-    a. Write code with tests
-    b. Verify the change with linting, testing, and so on
-    c. Code reviewer reviews and verifies the change
-    d. Commit the change before moving to the next change
-3. Reviewer agent finally reviews and verifies all of changes
+
+1. Analyze existing codebase and architectuere.
+2. Create new design and plan changes for new feature or refactoring.
+3. Get a review for the design and the plan.
+4. Confirm the design and plan to the user to see if the plan is good. Do not start until you get an approval
+5. Create new git worktrees located in `../worktrees` directory for the actual implementations. The worktrees' names must include a ticket number I gave.
+6. Subagents must make each change with review by other agents in the new worktrees.
+7. Once all changes are completed, create a GitHub PR.
+
 
 #### The details of all commands.
 ##### Parameters

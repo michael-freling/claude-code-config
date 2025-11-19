@@ -1,53 +1,66 @@
 ---
-description: Add or update a feature following a structured workflow with role-based agents
+description: Add or update a feature following a structured workflow with architecture design and review
 argument-hint: "describe the feature to add or update"
 allowed-tools: ["*"]
 ---
 
 # Feature
 
-Add or update a feature following a structured workflow with role-based agents.
-
-## Arguments
-
 $ARGUMENTS
 
 ## Workflow
 
-### 1. Analysis and Planning (Architect Agent)
-- Analyze existing codebase structure and patterns
-- Plan implementation changes
-- Identify opportunities for parallel development
-- **Confirm plan with user before proceeding**
+### 1. Analyze Existing Codebase and Architecture (Architect Agent)
 
-### 2. Implementation (Software Engineer Agents)
-Implement with incremental changes per task repeatedly until complete feature is implemented. For each task, the appropriate software engineer agent (Golang, TypeScript, Next.js, etc.) implements using Claude Code Skills:
+Analyze the current codebase structure, patterns, and architecture to understand the context for the new feature.
+
+### 2. Create Design and Plan Changes (Architect Agent)
+
+Design the new feature including:
+- Architecture changes required
+- API designs (if applicable)
+- Data models (if applicable)
+- Implementation plan with specific tasks
+- Opportunities for parallel development
+
+### 3. Get Design Review (Code Reviewer Agent)
+
+Have the design and plan reviewed for:
+- Architectural soundness
+- Alignment with existing patterns
+- Potential issues or improvements
+
+### 4. Confirm Plan with User
+
+**IMPORTANT**: Present the design and plan to the user. Do not proceed with implementation until you get approval from the user.
+
+### 5. Create Git Worktree
+
+Create a new git worktree in the `../worktrees` directory for the implementation. The worktree name must include the ticket number provided.
+
+### 6. Implementation (Software Engineer Agents)
+
+In the new worktree, implement changes with the following process for each task:
 
 a. **Write Code with Tests**
+   - The appropriate software engineer agent (Golang, TypeScript, Next.js, etc.) implements using Claude Code Skills
    - Follow language/framework skill guidelines
    - Implement feature code and corresponding tests
    - Maintain consistency with existing patterns
    - Keep changes simple and focused
 
-b. **Verify Changes**
-   - Run linters and formatters
-   - Execute relevant tests
-   - Fix any issues found
-
-c. **Peer Review**
-   - Different software engineer agent reviews implementation
+b. **Review Changes**
+   - A different agent reviews the implementation
    - Validates code quality and standards
    - Suggests improvements if needed
+   - Ensures tests are adequate
 
-d. **Commit Change**
-   - Commit the incremental change before moving to next change
+c. **Commit Changes**
+   - Commit the incremental change before moving to next task
 
-### 3. Final Review (Code Reviewer Agent)
-- Comprehensive quality validation
-- Verify all changes work together correctly
-- Standards adherence check
-- Security and performance review
-- Final approval
+### 7. Create GitHub PR
+
+Once all changes are completed in the worktree, create a GitHub Pull Request.
 
 ## Guidelines
 
@@ -55,4 +68,5 @@ d. **Commit Change**
 - Adhere to project-specific guidelines from `.claude/docs/guideline.md`
 - Use appropriate language/framework skills
 - Maintain test coverage
-- Ensure backward compatibility unless explicitly allowed to break it
+- Prefer breaking backward compatibility unless explicitly prohibited
+- Include ticket number in commit messages
