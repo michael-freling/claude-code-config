@@ -3,6 +3,7 @@
 !LICENSE
 !CLAUDE.md
 !settings.json
+!agents/*
 !commands/*
 !skills/
 !skills/**
