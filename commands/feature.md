@@ -21,10 +21,11 @@ $ARGUMENTS
 - **Confirm plan with user before proceeding**
 
 ### 2. Implementation (Software Engineer Agents)
-For each task, the appropriate software engineer agent (Golang, TypeScript, Next.js, etc.) implements using Claude Code Skills:
+Implement with incremental changes per task repeatedly until complete feature is implemented. For each task, the appropriate software engineer agent (Golang, TypeScript, Next.js, etc.) implements using Claude Code Skills:
 
-a. **Update Code**
+a. **Write Code with Tests**
    - Follow language/framework skill guidelines
+   - Implement feature code and corresponding tests
    - Maintain consistency with existing patterns
    - Keep changes simple and focused
 
@@ -38,18 +39,15 @@ c. **Peer Review**
    - Validates code quality and standards
    - Suggests improvements if needed
 
+d. **Commit Change**
+   - Commit the incremental change before moving to next change
+
 ### 3. Final Review (Code Reviewer Agent)
 - Comprehensive quality validation
+- Verify all changes work together correctly
 - Standards adherence check
 - Security and performance review
 - Final approval
-
-## Notes
-
-- Agents written in `~/.claude/roles` work as subagents on each step
-- Multiple subagents can work in parallel when possible
-- Each agent can commit each change on behalf of the user and push it to a remote repository **ONLY WHEN** the user instructs to do so
-- The project may be a single project or monorepo
 
 ## Guidelines
 

@@ -20,9 +20,16 @@ The commands and skills have to be created with following documents:
 
 Create a Claude Code's slash command `document-guideline` to write a document `.claude/docs/guideline.md` by following codes
 
-1. Architect role agent must analyze codebase and output a guideline
+1. Architect sub agent must analyze codebase and output a guideline
 2. Guideline must include at least an architecture, API designs, data models, design patterns, and coding best practices.
-3. If a repository is a monorepo, output a guideline document on each subproject instead of a root project. The guideline on the root project must not include guideilne specific to subprojects
+
+### Slash command: document-guideline-monorepo
+
+Create a Claude Code's slash command `document-guideline-monorepo` to write documents `.claude/docs/guideline.md` on each subproject of this monorepo by following codes
+
+1. Architect sub agent must analyze codebase and output a guideline
+2. Guideline must include at least an architecture, API designs, data models, design patterns, and coding best practices.
+3. Write a guideline document on each subproject instead of a root project. The guideline on the root project must not include guideilne specific to each subproject
 
 
 ### Slash command: document-roles
@@ -78,11 +85,12 @@ The overview of each command is following:
 
 **feature and refactor commands**
 1. Analyze existing codebase, plan changes in order to make some changes in parallel later, and confirm the plan to the user to see if the plan is good. Architect Agent must do this.
-2. Start implementation. On each task, software engineer agents should implement by following order, on each language or framework with Claude Code Skills.
-    a. Updating codes
-    b. Verify changes with lint or tests
-    c. Review changes by different software engineer agent
-3. Reviewer agent finally reviews changes
+2. Start development with incremeental changes until complete the implementation. For each change, agents must follow these steps:
+    a. Write code with tests
+    b. Verify the change with linting, testing, and so on
+    c. Code reviewer reviews and verifies the change
+    d. Commit the change before moving to the next change
+3. Reviewer agent finally reviews and verifies all of changes
 
 #### The details of all commands.
 ##### Parameters
@@ -91,11 +99,6 @@ Each slach command has parameters from a user, which describes what kind of chan
 - Only use $ARGUMENTS (or $1, $2 etc.) without additional explanation
 - The argument-hint in frontmatter is sufficient to guide users
 
-##### Notes
-
-- An agent written in `~/.claude/roles` should work on each step as a subagent, and multiple subagents can work in parallel if possible.
-- Each agent can commit each change on behalf of the user and push it to a remote repository **ONLY WHEN** a user instructs to do so.
-- Also, the project may be a single project or monorepo.
 
 ## General coding guideline
 
@@ -146,6 +149,7 @@ That includings following guideline:
 1. Identify if a repository includes a single project or it's in a monorepo. If it's a monorepo, follow a few rules:
     1. separate workflows per subproject and run workflows only when the project or its dependency is updated.
     2. create a reusable workflow, for example, each language, and use the workflow from each subproject instead of duplicating the same workflows on each project's workflow.
+2. When using new action, always check the latest version at first and use it.
 2. Use `gh act` to verify new changes locally
 
 

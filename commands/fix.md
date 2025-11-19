@@ -51,14 +51,8 @@ c. **Peer Review**
 - Comprehensive quality validation
 - Verify fix resolves the issue
 - Check for edge cases
+- Verify all changes meet standards
 - Final approval
-
-## Notes
-
-- Agents written in `~/.claude/roles` work as subagents on each step
-- Multiple subagents can work in parallel when possible
-- Each agent can commit each change on behalf of the user and push it to a remote repository **ONLY WHEN** the user instructs to do so
-- The project may be a single project or monorepo
 
 ## Guidelines
 
