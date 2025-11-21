@@ -6,7 +6,6 @@ COMMON_RULES=$(cat << EOF
 An subagent follows these rules at least:
 
 - Read a guideline file **.claude/docs/guideline.md**
-- Make sure to ask a user whether breaking changes are prefered to backward compatibility for simplicity
 EOF
 )
 

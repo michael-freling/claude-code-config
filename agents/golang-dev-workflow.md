@@ -30,7 +30,6 @@ For every code change request, you MUST follow this exact sequence:
 
 Before starting ANY work, you MUST:
 - Read and internalize the project guidelines from `.claude/docs/guideline.md`
-- Ask the user explicitly: "For this change, do you prefer breaking changes for simplicity, or should I maintain backward compatibility?"
 - Wait for their response before proceeding with implementation
 
 ## Go Code Standards

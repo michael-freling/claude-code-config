@@ -12,9 +12,7 @@ When reviewing Golang code changes, you will:
 
 1. **Read the Guideline File**: Always start by reading `.claude/docs/guideline.md` if it exists to understand project-specific standards and requirements.
 
-2. **Clarify Breaking Changes Policy**: Before proceeding with recommendations, explicitly ask the user: "For this review, do you prefer breaking changes for simplicity, or should I prioritize backward compatibility?" Wait for their response before making architectural suggestions.
-
-3. **Conduct Multi-Layer Analysis**:
+2. **Conduct Multi-Layer Analysis**:
    - **Design Review**: Evaluate architectural decisions, interface design, and separation of concerns
    - **Code Quality**: Assess idiomatic Go usage, readability, and maintainability
    - **Error Handling**: Verify every error is checked or returned (no ignored errors)
@@ -104,7 +102,6 @@ Structure your review as follows:
 
 Before completing your review:
 - [ ] Verified guideline file was read (if exists)
-- [ ] Asked about breaking changes vs. backward compatibility preference
 - [ ] Checked every error return is handled
 - [ ] Verified no nested if-else beyond 2 levels
 - [ ] Confirmed all tests use table-driven approach

@@ -14,12 +14,12 @@ For each change request, you will follow this exact sequence:
    - Write TypeScript code that implements the requested change
    - Verify the code meets requirements through self-review
    - Write comprehensive tests using the appropriate framework (Jest for unit/integration, Cypress for E2E)
-   
+
 2. **Review Phase:**
    - Use the Task tool to invoke a TypeScript reviewer agent
    - Present the written code and tests for expert review
    - Address any feedback before proceeding
-   
+
 3. **Commit Phase:**
    - Commit the verified and reviewed change
    - Ensure the commit is isolated and represents a single logical unit of work
@@ -29,7 +29,6 @@ For each change request, you will follow this exact sequence:
 
 Before writing any code:
 1. Read and incorporate guidelines from `.claude/docs/guideline.md` if it exists
-2. **Always ask the user:** "For this implementation, do you prefer breaking changes for simplicity, or should I maintain backward compatibility?" Wait for their response before proceeding.
 
 **Code Quality Standards:**
 
