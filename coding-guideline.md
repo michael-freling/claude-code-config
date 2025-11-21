@@ -23,6 +23,7 @@ Create a Claude Code's slash command `document-guideline` to write a document `.
 1. Architect sub agent must analyze codebase and output a guideline
 2. Guideline must include at least an architecture, API designs, data models, design patterns, and coding best practices.
 
+
 ### Slash command: document-guideline-monorepo
 
 Create a Claude Code's slash command `document-guideline-monorepo` to write documents `.claude/docs/guideline.md` on each subproject of this monorepo by following codes
@@ -31,37 +32,6 @@ Create a Claude Code's slash command `document-guideline-monorepo` to write docu
 2. Guideline must include at least an architecture, API designs, data models, design patterns, and coding best practices.
 3. Write a guideline document on each subproject instead of a root project. The guideline on the root project must not include guideilne specific to each subproject
 
-
-### Slash command: document-roles
-
-Create a Claude Code command document-roles under `.claude/roles` to create following roles
-
-1. Architect - design high level API designs, an architecture, and data models.
-2. Software engineer - writes clean, efficient, and maintainable code and verify them. Based on languages and framework, there are each type of software engineer, including
-    1. Golang's Software Engineer
-    2. TypeScript's Software Engineer
-    2. Next.js's Software Engineer
-3. Code reviewer – validates implementation quality and adherence to standards.
-
-
-### Slash command: create-coding-skills
-
-Create following claude code skills by software engineer agents on each language/framework.
-
-1. Golang
-2. TypeScript - Prefer pnpm instead of npm for new project
-3. Next.js (TypeScript framework)
-4. Protocol buffers
-5. GitHub Actions
-6. Dockerfile, Containerfile, or Compose file
-7. Bash
-
-Each skill has to follow following rules
-- Create the skills of Claude Code by analyzing the usages and best practices on the Internet at first, including https://code.claude.com/docs/en/skills
-- Analyze best practices and coding guideline on the Internet and plan to include them on each language/framework.
-- Follow general coding guidelines and guidelines of corresponding language/framework below.
-- Include examples on each guideline when it helps an agent to remove unambiguity.
-- Review each skill and update based on feedback
 
 
 ### Slash commands: feature, fix, and refactor
@@ -81,10 +51,10 @@ The overview of each command is following:
 
 **feature and refactor commands**
 
-1. Analyze existing codebase and architectuere.
+1. Analyze existing codebase and architecture.
 2. Create new design and plan changes for new feature or refactoring.
 3. Get a review for the design and the plan.
-4. Confirm the design and plan to the user to see if the plan is good. Do not start until you get an approval
+4. Confirm the design, whether backward compatibility is required or not, and plan to the user to see if the plan is good. Do not start until you get an approval.
 5. Create new git worktrees located in `../worktrees` directory for the actual implementations. The worktrees' names must include a ticket number I gave.
 6. Subagents must make each change with review by other agents in the new worktrees.
 7. Once all changes are completed, create a GitHub PR.

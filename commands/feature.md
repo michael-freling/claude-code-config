@@ -32,15 +32,15 @@ Have the design and plan reviewed for:
 
 ### 4. Confirm Plan with User
 
-**IMPORTANT**: Present the design and plan to the user. Do not proceed with implementation until you get approval from the user.
+**IMPORTANT**: Present the design, whether backward compatibility is required or not, and plan to the user. Confirm the plan is good before proceeding. Do not start implementation until you get approval from the user.
 
 ### 5. Create Git Worktree
 
-Create a new git worktree in the `../worktrees` directory for the implementation. The worktree name must include the ticket number provided.
+Create a new git worktree in the `../worktrees` directory for the actual implementation. The worktree name must include the ticket number you provided.
 
 ### 6. Implementation (Software Engineer Agents)
 
-In the new worktree, implement changes with the following process for each task:
+Subagents make each change with review by other agents in the new worktree. For each task, follow this process:
 
 a. **Write Code with Tests**
    - The appropriate software engineer agent (Golang, TypeScript, Next.js, etc.) implements using Claude Code Skills
