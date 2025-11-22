@@ -17,36 +17,41 @@ Analyze the current codebase to understand:
 - Areas that need refactoring
 - Potential improvements
 
-### 2. Create Design and Plan Changes (Architect Agent)
+### 2. Clean Up Unnecessary Code (Architect Agent)
+
+Before planning implementation, clean up unnecessary code in areas where changes will be made:
+- Remove dead code and unused imports
+- Remove redundant logic
+- Identify and document technical debt
+
+### 3. Create Design and Plan Changes (Architect Agent)
 
 Design the refactoring including:
 - Architecture improvements
 - Code structure changes
 - Implementation plan with specific tasks
-- Opportunities for parallel work
+- Identify opportunities for parallel work
 
-Before planning implementation:
-- **Clean up unnecessary code** in areas where changes will be made
-- Remove dead code, unused imports, and redundant logic
-
-### 3. Get Design Review (Code Reviewer Agent)
+### 4. Get Design Review (Code Reviewer Agent)
 
 Have the refactoring plan reviewed for:
 - Soundness of approach
 - Potential risks or issues
 - Better alternatives
 
-### 4. Confirm Plan with User
+### 5. Confirm Plan with User
 
 **IMPORTANT**: Present the design, whether backward compatibility is required or not, and plan to the user. Confirm the plan is good before proceeding. Do not start implementation until you get approval from the user.
 
-### 5. Create Git Worktree
+### 6. Create Git Worktrees
 
-Create a new git worktree in the `../worktrees` directory for the actual implementation. The worktree name must include the ticket number you provided.
+Create new git worktrees in the `../worktrees` directory for the actual implementation. The worktree names must include the ticket number provided.
 
-### 6. Implementation (Software Engineer Agents)
+If tasks can be worked on in parallel, create multiple worktrees to enable concurrent development.
 
-Subagents make each change with review by other agents in the new worktree. For each task, follow this process:
+### 7. Implementation (Software Engineer Agents)
+
+Subagents make each change with review by other agents in the new worktrees. For each task, follow this process:
 
 a. **Write Code with Tests**
    - The appropriate software engineer agent (Golang, TypeScript, Next.js, etc.) implements using Claude Code Skills
@@ -65,9 +70,9 @@ b. **Review Changes**
 c. **Commit Changes**
    - Commit the incremental change before moving to next task
 
-### 7. Create GitHub PR
+### 8. Create GitHub PR
 
-Once all changes are completed in the worktree, create a GitHub Pull Request.
+Once all changes are completed in the worktrees, create a GitHub Pull Request.
 
 ## Guidelines
 

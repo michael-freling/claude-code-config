@@ -33,31 +33,7 @@ Based on the analysis and root cause:
 
 ### 4. Confirm Plan with User
 
-**IMPORTANT**: Present the analysis and plan to the user. Confirm the plan is good before proceeding with implementation.
-
-### 5. Implementation (Software Engineer Agents)
-
-For each task, the appropriate software engineer agent (Golang, TypeScript, Next.js, etc.) implements using Claude Code Skills:
-
-a. **Update Code**
-   - Implement fix following language/framework skill guidelines
-   - Address root cause, not just symptoms
-   - Keep changes minimal and focused
-   - Add tests to prevent regression
-
-b. **Verify Changes**
-   - Run linters and formatters
-   - Execute tests to confirm fix
-   - Verify no regressions introduced
-
-c. **Review Changes**
-   - Different software engineer agent reviews fix
-   - Validates solution addresses root cause
-   - Ensures no side effects
-   - Verifies test coverage
-
-d. **Commit Changes**
-   - Commit the incremental change
+**IMPORTANT**: Present the analysis, root cause findings, and planned fixes to the user. Wait for user approval before proceeding with any implementation.
 
 ## Guidelines
 
@@ -65,6 +41,3 @@ d. **Commit Changes**
 - Understand root cause before fixing
 - Follow general coding guidelines (DRY, fail-fast, simplicity)
 - Adhere to project-specific guidelines from `.claude/docs/guideline.md`
-- Add tests to prevent regression
-- Document fix rationale if complex
-- Include ticket number in commit messages
