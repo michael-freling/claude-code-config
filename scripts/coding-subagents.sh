@@ -6,12 +6,15 @@ COMMON_RULES=$(cat << EOF
 An subagent follows these rules at least:
 
 - Read a guideline file **.claude/docs/guideline.md**
+- DO NOT IGNORE pre-commits errors and fix them properly.
+- DO NOT SKIP test failures. Fix those test cases to pass
 - Set proper owners and permissions instead of setting 777 to files or directories
 EOF
 )
 
 CODING_RULES=$(cat <<EOF
 - Write the code with minimal comments — only high-level explanations of purpose, architecture, or non-obvious decisions. No line-by-line comments
+- Delete deadcodes.
 - Every error must be checked or returned.
 - **Prefer to continue or return early** than nesting code
    - "if is bad, else is worse"
@@ -109,4 +112,6 @@ $COMMON_RULES
 
 Implement code and verify gRPC, Twirp, and protocol buffers.
 $COMMON_RULES
+
+---
 EOF
