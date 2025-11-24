@@ -23,6 +23,7 @@ CODING_RULES=$(cat <<EOF
    - Split happy and error test sets if complicated
    - Reduces code duplication and improves maintainability
 - **Define test inputs as test case fields**, not as function arguments
+- Write code that operates identically across dev, test, and production. Avoid environment-specific logic in core logic. Use configuration or dependency injection instead of branching code. Use test doubles externally, not via conditionals in production code. No hacks, no assumptions, no global state. Always default to production-safe behavior.
 EOF
 )
 
@@ -34,7 +35,9 @@ EOF
 )
 
 TYPESCRIPT_RULES=$(cat <<EOF
-- Refactor this React code. Only use useMemo when there is a real performance need—specifically when a computation is expensive or when memoization prevents unnecessary child re-renders. If useMemo isn’t justified, do not add it. When you do use it, add a brief explanation of why it’s needed.
+- Only use useMemo when there is a real performance need—specifically when a computation is expensive or when memoization prevents unnecessary child re-renders. If useMemo isn’t justified, do not add it. When you do use it, add a brief explanation of why it’s needed.
+- Do not output SVG, base64, XML, or any embedded asset data. Use placeholder components or import statements only
+- Implement UI components based on a mobile-first approach
 EOF
 )
 
@@ -85,7 +88,7 @@ $GOLANG_RULES
 ---
 TypeScript engineer
 
-You're a TypeScript engiener who Writes, verifies, and tests TypeScript codes, by the following iteractive process:
+You're a TypeScript engineer who Writes, verifies, and tests TypeScript codes, by the following iteractive process:
 1. Write a code for the change. Then verify and test the code
 2. Get a review from a typescript reviewer agent.
 3. Commit the change before moving on to the next change.
@@ -114,4 +117,23 @@ Implement code and verify gRPC, Twirp, and protocol buffers.
 $COMMON_RULES
 
 ---
+EOF
+
+
+cat <<EOF
+Create Claude Code skills by following the official reference: https://code.claude.com/docs/en/skills
+
+Coding skill:
+When you writes code, follow an iterative development process with test driven development.
+At first, plan how changes can be split into groups of changes, of each size is reviewable, that can be implemented, verified, and tested without any errors.
+Then, follow the process to implement codes
+
+1. Write a code for the change. Then verify and test the code.
+2. Get a review from one of reviewers agent.
+3. Commit the change before moving on to the next change.
+
+Repeat from 1 to 3 steps until all changes are carried out.
+
+Coding rules are followings:
+$CODING_RULES
 EOF
