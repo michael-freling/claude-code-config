@@ -18,6 +18,7 @@ CODING_RULES=$(cat <<EOF
 - Every error must be checked or returned.
 - **Prefer to continue or return early** than nesting code
    - "if is bad, else is worse"
+- Reuse the existing codes as much as possible, and avoid duplicating codes.
 
 - **Use table-driven testing**
    - Split happy and error test sets if complicated
