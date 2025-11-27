@@ -55,9 +55,10 @@ The overview of each command is following:
 2. Create new design and plan changes for new feature or refactoring.
 3. Get a review for the design and the plan.
 4. Confirm the design, whether backward compatibility is required or not, and plan to the user to see if the plan is good. Do not start until you get an approval.
-5. Create new git worktrees located in `../worktrees` directory for the actual implementations. The worktrees' names must include a ticket number I gave. If some tasks can be worked on in parallel, create multiple worktrees.
-7. Subagents must make each change with review by other agents in the new worktrees.
-8. Once all changes are completed, create a GitHub PR.
+5. If there are multiple phases
+    1. Create an epic PR to the default branch with an empty commit.
+    2. For each phase, subagents must make each change in a worktree. New worktree msut be under `../worktrees`. And create a sub PR to the branch of the epic PR.
+6. If there is a single phase subagents must make each change in a worktree. New worktree must be under `../worktrees`
 
 
 #### The details of all commands.

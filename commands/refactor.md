@@ -43,11 +43,19 @@ Have the refactoring plan reviewed for:
 
 **IMPORTANT**: Present the design, whether backward compatibility is required or not, and plan to the user. Confirm the plan is good before proceeding. Do not start implementation until you get approval from the user.
 
-### 6. Create Git Worktrees
+### 6. Set Up Development Environment
 
-Create new git worktrees in the `../worktrees` directory for the actual implementation. The worktree names must include the ticket number provided.
+Based on the plan phases:
 
-If tasks can be worked on in parallel, create multiple worktrees to enable concurrent development.
+**If there are multiple phases:**
+1. Create an epic PR to the default branch with an empty commit
+2. For each phase, create a git worktree under `../worktrees`
+3. Create sub PRs targeting the epic PR branch for each phase
+
+**If there is a single phase:**
+1. Create a git worktree under `../worktrees` for the implementation
+
+The worktree names must include the ticket number provided.
 
 ### 7. Implementation (Software Engineer Agents)
 
