@@ -35,9 +35,58 @@ Based on the analysis and root cause:
 
 **IMPORTANT**: Present the analysis, root cause findings, and planned fixes to the user. Wait for user approval before proceeding with any implementation.
 
+### 5. Set Up Development Environment
+
+Based on the plan phases:
+
+**If there are multiple phases:**
+1. Create an epic PR to the default branch with an empty commit
+2. For each phase, create a git worktree under `../worktrees`
+3. Create sub PRs targeting the epic PR branch for each phase
+
+**If there is a single phase:**
+1. Create a git worktree under `../worktrees` for the implementation
+
+The worktree names must include the ticket number you provided.
+
+### 6. Implementation (Software Engineer Agents)
+
+Subagents must make each change with review by other agents in the new worktrees. For each task, follow this process:
+
+a. **Write Code with Tests**
+   - The appropriate software engineer agent (Golang, TypeScript, Next.js, etc.) implements using Claude Code Skills
+   - Follow language/framework skill guidelines
+   - Implement fix and corresponding tests
+   - Maintain consistency with existing patterns
+   - Keep changes simple and focused
+
+b. **Review Changes**
+   - A different agent reviews the implementation
+   - Validates code quality and standards
+   - Suggests improvements if needed
+   - Ensures tests are adequate
+
+c. **Commit Changes**
+   - Commit the incremental change before moving to next task
+
+### 7. Create GitHub PR and Fix CI Errors
+
+Once all changes are completed in the worktrees, create a GitHub Pull Request.
+
+**IMPORTANT - CI Error Handling:**
+- Fix any CI errors until CI passes
+- CI is slow, so wait appropriately:
+  - Wait for at least a minute for a job to start
+  - Wait for at least every 5 minutes between checks to allow jobs to complete
+- Do not rush CI checks - be patient and thorough
+
 ## Guidelines
 
 - Always reproduce the error first before attempting fixes
 - Understand root cause before fixing
 - Follow general coding guidelines (DRY, fail-fast, simplicity)
 - Adhere to project-specific guidelines from `.claude/docs/guideline.md`
+- Use appropriate language/framework skills
+- Maintain test coverage
+- Include ticket number in commit messages
+- Be patient with CI - wait for jobs to start and complete before re-checking

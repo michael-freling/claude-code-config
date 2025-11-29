@@ -46,7 +46,12 @@ The overview of each command is following:
 **Fix command**
 1. Analyze existing codebase, and understand where an error happens. Architect Agent must do this.
 2. Reproduce errors and understand the root cause of an error. A software engineer with the right techstack must do this.
-3. Based on the analysis and the root cause of an error, plan changes to make changes. Confirm the plan to the user to see if the plan is good.
+3. Based on the analysis and the root cause of an error, plan changes to make changes. Confirm the plan to the user to see if the plan is good. Do not start until you get an approval.
+5. If there are multiple phases
+    1. Create an epic PR to the default branch with an empty commit.
+    2. For each phase, subagents must make each change in a worktree. New worktree msut be under `../worktrees`. And create a sub PR to the branch of the epic PR.
+    3. Fix any CI errors until CI passes. To confirm the result of CI, wait for a long time because CI is slow. For example, wait for a minute to start a job, and wait for at least every 5 minutes to complete.
+6. If there is a single phase subagents must make each change in a worktree. New worktree must be under `../worktrees`. Then create a PR and fix any CI errors until CI passes while waiting for a long time.
 
 
 **feature and refactor commands**
@@ -58,7 +63,8 @@ The overview of each command is following:
 5. If there are multiple phases
     1. Create an epic PR to the default branch with an empty commit.
     2. For each phase, subagents must make each change in a worktree. New worktree msut be under `../worktrees`. And create a sub PR to the branch of the epic PR.
-6. If there is a single phase subagents must make each change in a worktree. New worktree must be under `../worktrees`
+    3. Fix any CI errors until CI passes. To confirm the result of CI, wait for a long time because CI is slow. For example, wait for a minute to start a job, and wait for at least every 5 minutes to complete.
+6. If there is a single phase subagents must make each change in a worktree. New worktree must be under `../worktrees`. Then create a PR and fix any CI errors until CI passes while waiting for a long time.
 
 
 #### The details of all commands.

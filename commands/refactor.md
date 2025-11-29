@@ -80,7 +80,12 @@ c. **Commit Changes**
 
 ### 8. Create GitHub PR
 
-Once all changes are completed in the worktrees, create a GitHub Pull Request.
+Once all changes are completed in the worktrees, create a GitHub Pull Request. Then fix any CI errors until CI passes.
+
+**IMPORTANT - CI Wait Times**: CI is slow and requires patience:
+- Wait for at least 1 minute for CI jobs to start
+- Wait for at least 5 minutes between checks for job completion
+- Do not assume CI has failed if it hasn't started or completed yet
 
 ## Guidelines
 
@@ -92,3 +97,4 @@ Once all changes are completed in the worktrees, create a GitHub Pull Request.
 - Keep refactoring focused and incremental
 - Ensure all tests pass after refactoring
 - Include ticket number in commit messages
+- **CI takes time**: Wait at least 1 minute for CI to start, and at least 5 minutes between completion checks

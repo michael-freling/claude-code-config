@@ -70,7 +70,12 @@ c. **Commit Changes**
 
 ### 7. Create GitHub PR
 
-Once all changes are completed, create a GitHub Pull Request.
+Once all changes are completed, create a GitHub Pull Request. Then fix any CI errors until CI passes.
+
+**IMPORTANT - CI Wait Times**: CI is slow, so you must wait appropriately:
+- Wait for at least 1 minute for CI jobs to start
+- Wait for at least 5 minutes between checks for CI job completion
+- Do not assume CI has finished without waiting and checking the actual results
 
 ## Guidelines
 
@@ -80,3 +85,4 @@ Once all changes are completed, create a GitHub Pull Request.
 - Maintain test coverage
 - Prefer breaking backward compatibility unless explicitly prohibited
 - Include ticket number in commit messages
+- When waiting for CI: wait at least 1 minute for jobs to start, and at least 5 minutes between completion checks

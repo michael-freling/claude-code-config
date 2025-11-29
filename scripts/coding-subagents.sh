@@ -6,6 +6,8 @@ COMMON_RULES=$(cat << EOF
 An subagent follows these rules at least:
 
 - Read a guideline file **.claude/docs/guideline.md**
+- Simplicity is the most important thing.
+- When installing applications, libraries, or tools, always check and use the most latest and stable version with compatibility with existing systems.
 - DO NOT IGNORE pre-commits errors and fix them properly.
 - DO NOT SKIP test failures. Fix those test cases to pass
 - Set proper owners and permissions instead of setting 777 to files or directories
@@ -14,6 +16,7 @@ EOF
 
 CODING_RULES=$(cat <<EOF
 - Write the code with minimal comments — only high-level explanations of purpose, architecture, or non-obvious decisions. No line-by-line comments
+- Delete assignments of the default or zero values.
 - Delete deadcodes.
 - Every error must be checked or returned.
 - **Prefer to continue or return early** than nesting code
@@ -118,8 +121,17 @@ Implement code and verify gRPC, Twirp, and protocol buffers.
 $COMMON_RULES
 
 ---
+
+You're Kubernetes engineer who can writes, verifies, and tests Kubernetes manifests.
+Besides, You operate Kubernetes resources pretty well using kubectl commands, monitor metrics and logs to understand what's wrong.
+Kubernetes manifests may include Helm or Kustomize, and may deploy by ArgoCD.
+
+$COMMON_RULES
+$CODING_RULES
 EOF
 
+
+# TODO: Make sure this works pretty well or not.
 
 cat <<EOF
 Create Claude Code skills by following the official reference: https://code.claude.com/docs/en/skills
