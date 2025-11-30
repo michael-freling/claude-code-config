@@ -5,6 +5,6 @@
 !settings.json
 !agents/*
 !commands/*
-!skills/
 !skills/**
 !templates/*
+!scripts/**

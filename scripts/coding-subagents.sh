@@ -149,4 +149,7 @@ Repeat from 1 to 3 steps until all changes are carried out.
 
 Coding rules are followings:
 $CODING_RULES
+
+----------
+
 EOF
