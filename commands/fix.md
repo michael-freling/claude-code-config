@@ -35,7 +35,11 @@ Based on the analysis and root cause:
 
 **IMPORTANT**: Present the analysis, root cause findings, and planned fixes to the user. Wait for user approval before proceeding with any implementation.
 
-### 5. Set Up Development Environment
+### 5. Update Local Default Branch
+
+Once you get approval, ensure the local default branch is the same as the remote one. If not, recreate the local default branch from the remote.
+
+### 6. Set Up Development Environment
 
 Based on the plan phases:
 
@@ -49,7 +53,7 @@ Based on the plan phases:
 
 The worktree names must include the ticket number you provided.
 
-### 6. Implementation (Software Engineer Agents)
+### 7. Implementation (Software Engineer Agents)
 
 Subagents must make each change with review by other agents in the new worktrees. For each task, follow this process:
 
@@ -69,7 +73,7 @@ b. **Review Changes**
 c. **Commit Changes**
    - Commit the incremental change before moving to next task
 
-### 7. Create GitHub PR and Fix CI Errors
+### 8. Create GitHub PR and Fix CI Errors
 
 Once all changes are completed in the worktrees, create a GitHub Pull Request.
 

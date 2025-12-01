@@ -43,7 +43,11 @@ Have the refactoring plan reviewed for:
 
 **IMPORTANT**: Present the design, whether backward compatibility is required or not, and plan to the user. Confirm the plan is good before proceeding. Do not start implementation until you get approval from the user.
 
-### 6. Set Up Development Environment
+### 6. Update Local Main Branch
+
+Once you get approval, ensure the local main branch is the same as the remote main branch. If not, recreate the local main branch from the remote.
+
+### 7. Set Up Development Environment
 
 Based on the plan phases:
 
@@ -57,7 +61,7 @@ Based on the plan phases:
 
 The worktree names must include the ticket number provided.
 
-### 7. Implementation (Software Engineer Agents)
+### 8. Implementation (Software Engineer Agents)
 
 Subagents make each change with review by other agents in the new worktrees. For each task, follow this process:
 
@@ -78,7 +82,7 @@ b. **Review Changes**
 c. **Commit Changes**
    - Commit the incremental change before moving to next task
 
-### 8. Create GitHub PR
+### 9. Create GitHub PR
 
 Once all changes are completed in the worktrees, create a GitHub Pull Request. Then fix any CI errors until CI passes.
 
