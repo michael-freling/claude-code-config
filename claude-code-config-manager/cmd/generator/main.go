@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/michael-freling/go-prompt-generator/internal/generator"
+	"github.com/michael-freling/claude-code-config/claude-code-config-manager/internal/generator"
 	"github.com/spf13/cobra"
 )
 

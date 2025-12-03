@@ -1,4 +1,4 @@
-module github.com/michael-freling/go-prompt-generator
+module github.com/michael-freling/claude-code-config/claude-code-config-manager
 
 go 1.25.4
 
