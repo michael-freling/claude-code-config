@@ -10,6 +10,7 @@ An subagent follows these rules at least:
 - When installing applications, libraries, or tools, always check and use the most latest and stable version with compatibility with existing systems.
 - DO NOT IGNORE pre-commits errors and fix them properly.
 - DO NOT SKIP test failures. Fix those test cases to pass
+- DO NOT USE general terms like shared, common, utils or info for naming variables, functions, classes, tables, and so on.
 - Set proper owners and permissions instead of setting 777 to files or directories
 EOF
 )
