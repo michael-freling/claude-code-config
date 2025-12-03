@@ -1,0 +1,142 @@
+{{/* Shared template definitions for agents */}}
+
+{{/* Common rules that apply to all agents */}}
+{{define "common-rules"}}
+## First Steps
+
+Before writing any code, you MUST read the guideline file at **.claude/docs/guideline.md** to understand project-specific conventions and requirements.
+{{end}}
+
+{{/* Coding standards common to software engineers */}}
+{{define "coding-rules"}}
+## Coding Standards
+
+### Error Handling
+- Every error MUST be checked or returned - never ignore errors
+- Prefer early returns over nested error handling
+- Follow the principle: "if is bad, else is worse"
+- Use error wrapping with context when appropriate
+
+### Code Structure
+- Prefer early returns and guard clauses over deep nesting
+- Continue or return early rather than using else blocks
+- Delete all dead code - no commented-out code or unused functions
+- Keep functions focused and small
+
+### Comments
+- Write minimal comments - only high-level explanations of purpose, architecture, or non-obvious decisions
+- NO line-by-line comments
+- Let the code be self-documenting through clear naming
+
+### File Permissions
+- Set proper owners and permissions on files and directories
+- NEVER use 777 permissions - always use the minimum required permissions
+{{end}}
+
+{{/* Golang-specific coding rules */}}
+{{define "golang-rules"}}
+## Testing Standards
+
+### Table-Driven Tests
+- Use table-driven testing for all tests
+- Split happy path and error test cases into separate tables if the test becomes complicated
+- Define test inputs as test case struct fields, NOT as function arguments
+
+### Test Structure
+```go
+func TestFunction(t *testing.T) {
+    tests := []struct {
+        name    string
+        input   InputType
+        want    OutputType
+        wantErr bool
+    }{
+        // test cases
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got, err := Function(tt.input)
+            // assertions
+        })
+    }
+}
+```
+
+### Assertions
+- ALWAYS use `want`/`got` naming - NEVER use `expected`/`actual`
+- Use `assert` from testify when the test can continue after failure
+- Use `require` from testify when the test should stop immediately on failure
+- Use `go.uber.org/gomock` for all mock generation and usage
+
+### Test Failures
+- NEVER skip failing tests
+- Fix all test failures before requesting review
+- If a test is genuinely invalid, discuss why before removing it
+
+## Pre-Commit Requirements
+
+- Run all pre-commit hooks before considering code complete
+- DO NOT IGNORE any pre-commit errors
+- Fix all linting, formatting, and validation errors
+- Ensure `go mod tidy` has been run if dependencies changed
+
+## Quality Checklist
+
+Before requesting review, verify:
+- [ ] Read and followed .claude/docs/guideline.md
+- [ ] Code compiles without errors
+- [ ] All tests pass
+- [ ] Pre-commit hooks pass
+- [ ] No dead code remains
+- [ ] All errors are handled
+- [ ] Early returns used instead of nesting
+- [ ] Tests use table-driven approach
+- [ ] Tests use want/got naming
+- [ ] Tests use assert/require appropriately
+- [ ] Mocks use gomock
+- [ ] Minimal, high-level comments only
+- [ ] Proper file permissions set
+{{end}}
+
+{{/* TypeScript-specific coding rules */}}
+{{define "typescript-rules"}}
+## Code Quality Standards
+
+### Error Handling
+- Every error MUST be checked or returned - never silently ignored
+- Prefer early returns over nested conditionals: "if is bad, else is worse"
+- Use guard clauses to handle edge cases at the top of functions
+
+### Code Style
+- Write minimal comments - only high-level explanations of purpose, architecture, or non-obvious decisions
+- NO line-by-line comments
+- Delete dead code - do not leave commented-out code or unused functions
+- Set proper file owners and permissions - NEVER use 777
+
+### React/Next.js Specific
+- Only use useMemo when there is a demonstrable performance need:
+  - Expensive computations
+  - Preventing unnecessary child re-renders with referential equality
+- When using useMemo, add a brief comment explaining WHY it's needed
+- Do NOT output SVG, base64, XML, or embedded asset data - use placeholder components or import statements
+
+### Testing Standards
+- Use table-driven testing pattern:
+  ```typescript
+  const testCases = [
+    { name: 'valid input', input: 'test', expected: true },
+    { name: 'empty input', input: '', expected: false },
+  ];
+
+  describe('validateInput', () => {
+    test.each(testCases)('$name', ({ input, expected }) => {
+      expect(validateInput(input)).toBe(expected);
+    });
+  });
+  ```
+- Split happy path and error test sets when tests become complicated
+- Define test inputs as test case fields, NOT as function arguments
+- DO NOT SKIP test failures - fix failing tests to pass
+- Ensure comprehensive coverage of edge cases
+{{end}}

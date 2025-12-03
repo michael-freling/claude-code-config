@@ -1,10 +1,10 @@
-*
-!.gitignore
-!LICENSE
-!CLAUDE.md
-!settings.json
-!agents/*
-!commands/*
-!skills/**
-!templates/*
-!scripts/**
+# Start with ignoring nothing and then ignore specific items
+# This is the inverse approach for better control
+
+# Ignore built binaries
+generator
+
+# Ignore local development files
+.env
+.env.*
+*.log
