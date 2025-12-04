@@ -2,7 +2,7 @@
 # This is the inverse approach for better control
 
 # Ignore built binaries
-generator
+/generator
 
 # Ignore local development files
 .env

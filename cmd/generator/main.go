@@ -29,61 +29,94 @@ func newRootCmd() *cobra.Command {
 }
 
 func newAgentsCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "agents",
-		Short: "Generate prompts for all agents",
-		Long:  `Generate prompts to create all agent definitions.`,
+	cmd := &cobra.Command{
+		Use:   "agents [name|list]",
+		Short: "Generate prompt for a specific agent or list available agents",
+		Long:  `Generate prompt for a specific agent by name, or use "list" to show available agents.`,
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gen, err := generator.NewGenerator()
 			if err != nil {
 				return fmt.Errorf("failed to create generator: %w", err)
 			}
 
-			if err := gen.GenerateAll(generator.ItemTypeAgent); err != nil {
-				return fmt.Errorf("failed to generate agents: %w", err)
+			if args[0] == "list" {
+				agents := gen.List(generator.ItemTypeAgent)
+				for _, name := range agents {
+					fmt.Println(name)
+				}
+				return nil
+			}
+
+			if err := gen.Generate(generator.ItemTypeAgent, args[0]); err != nil {
+				return fmt.Errorf("failed to generate agent: %w", err)
 			}
 
 			return nil
 		},
 	}
+
+	return cmd
 }
 
 func newCommandsCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "commands",
-		Short: "Generate prompts for all commands",
-		Long:  `Generate prompts to create all command definitions.`,
+	cmd := &cobra.Command{
+		Use:   "commands [name|list]",
+		Short: "Generate prompt for a specific command or list available commands",
+		Long:  `Generate prompt for a specific command by name, or use "list" to show available commands.`,
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gen, err := generator.NewGenerator()
 			if err != nil {
 				return fmt.Errorf("failed to create generator: %w", err)
 			}
 
-			if err := gen.GenerateAll(generator.ItemTypeCommand); err != nil {
-				return fmt.Errorf("failed to generate commands: %w", err)
+			if args[0] == "list" {
+				commands := gen.List(generator.ItemTypeCommand)
+				for _, name := range commands {
+					fmt.Println(name)
+				}
+				return nil
+			}
+
+			if err := gen.Generate(generator.ItemTypeCommand, args[0]); err != nil {
+				return fmt.Errorf("failed to generate command: %w", err)
 			}
 
 			return nil
 		},
 	}
+
+	return cmd
 }
 
 func newSkillsCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "skills",
-		Short: "Generate prompts for all skills",
-		Long:  `Generate prompts to create all skill definitions.`,
+	cmd := &cobra.Command{
+		Use:   "skills [name|list]",
+		Short: "Generate prompt for a specific skill or list available skills",
+		Long:  `Generate prompt for a specific skill by name, or use "list" to show available skills.`,
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gen, err := generator.NewGenerator()
 			if err != nil {
 				return fmt.Errorf("failed to create generator: %w", err)
 			}
 
-			if err := gen.GenerateAll(generator.ItemTypeSkill); err != nil {
-				return fmt.Errorf("failed to generate skills: %w", err)
+			if args[0] == "list" {
+				skills := gen.List(generator.ItemTypeSkill)
+				for _, name := range skills {
+					fmt.Println(name)
+				}
+				return nil
+			}
+
+			if err := gen.Generate(generator.ItemTypeSkill, args[0]); err != nil {
+				return fmt.Errorf("failed to generate skill: %w", err)
 			}
 
 			return nil
 		},
 	}
+
+	return cmd
 }

@@ -20,6 +20,20 @@ func NewGenerator() (*Generator, error) {
 	}, nil
 }
 
+func (g *Generator) Generate(itemType ItemType, name string) error {
+	content, err := g.engine.Generate(itemType, name)
+	if err != nil {
+		return fmt.Errorf("failed to generate %s %s: %w", itemType, name, err)
+	}
+
+	fmt.Fprintln(os.Stdout, content)
+	return nil
+}
+
+func (g *Generator) List(itemType ItemType) []string {
+	return g.engine.List(itemType)
+}
+
 func (g *Generator) GenerateAll(itemType ItemType) error {
 	templates := g.engine.List(itemType)
 

@@ -67,14 +67,14 @@ func loadTemplatesForType(itemType ItemType) (*template.Template, []string, erro
 
 	var tmpl *template.Template
 
-	// First pass: parse shared _partials.tmpl from prompts directory
-	sharedPartialsPath := "templates/prompts/_partials.tmpl"
-	partialsContent, err := fs.ReadFile(templatesFS, sharedPartialsPath)
+	// First pass: parse type-specific _partials.tmpl from the type's directory
+	typePartialsPath := filepath.Join(dir, "_partials.tmpl")
+	partialsContent, err := fs.ReadFile(templatesFS, typePartialsPath)
 	if err == nil {
 		tmpl = template.New(string(itemType))
 		tmpl, err = tmpl.Parse(string(partialsContent))
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to parse shared partials: %w", err)
+			return nil, nil, fmt.Errorf("failed to parse type-specific partials: %w", err)
 		}
 	} else {
 		tmpl = template.New(string(itemType))
