@@ -85,4 +85,44 @@ if [[ "$command" =~ gh[[:space:]]+api ]] && [[ "$command" =~ repos/[^/]+/[^/]+/r
   fi
 fi
 
+# Block merging PRs to main/master via gh api
+# Endpoint: PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge
+if [[ "$command" =~ gh[[:space:]]+api ]] && [[ "$command" =~ pulls/[0-9]+/merge ]]; then
+  if [[ "$command" =~ -X[[:space:]]+PUT ]] || [[ "$command" =~ --method[[:space:]]+PUT ]]; then
+    # Extract PR number and check its base branch
+    pr_number=$(echo "$command" | grep -oP 'pulls/\K[0-9]+(?=/merge)')
+    if [[ -n "$pr_number" ]]; then
+      base_branch=$(gh pr view "$pr_number" --json baseRefName -q '.baseRefName' 2>/dev/null)
+      if [[ "$base_branch" == "main" || "$base_branch" == "master" ]]; then
+        echo "ERROR: Blocked - Merging PR #$pr_number to $base_branch via API is not allowed" >&2
+        exit 2
+      fi
+    fi
+  fi
+fi
+
+# Block merging PRs to main/master via gh pr merge
+if [[ "$command" =~ gh[[:space:]]+pr[[:space:]]+merge ]]; then
+  # Extract PR number or URL from the command
+  # Matches: gh pr merge 123, gh pr merge https://..., gh pr merge (current branch)
+  pr_ref=$(echo "$command" | sed -E 's/.*gh[[:space:]]+pr[[:space:]]+merge[[:space:]]+([^[:space:]-][^[:space:]]*).*/\1/' 2>/dev/null)
+
+  # If no PR ref found, it's merging current branch's PR
+  if [[ -z "$pr_ref" || "$pr_ref" == "$command" ]]; then
+    pr_ref=""
+  fi
+
+  # Query the PR's base branch
+  if [[ -n "$pr_ref" ]]; then
+    base_branch=$(gh pr view "$pr_ref" --json baseRefName -q '.baseRefName' 2>/dev/null)
+  else
+    base_branch=$(gh pr view --json baseRefName -q '.baseRefName' 2>/dev/null)
+  fi
+
+  if [[ "$base_branch" == "main" || "$base_branch" == "master" ]]; then
+    echo "ERROR: Blocked - Merging PR to $base_branch is not allowed" >&2
+    exit 2
+  fi
+fi
+
 exit 0
