@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/michael/.claude/hooks/block-no-verify.sh"
+            "command": "/home/michael/.claude/hooks/block-dangerous-git-ops.sh"
           }
         ]
       }
@@ -49,5 +49,8 @@
       }
     ]
   },
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "enabledPlugins": {
+    "frontend-design@claude-code-plugins": true
+  }
 }
