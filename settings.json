@@ -33,17 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/michael/.claude/hooks/block-dangerous-git-ops.sh"
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/hooks/cleanup-worktree.sh"
+            "command": "claude-code-hooks pre-tool-use"
           }
         ]
       }
