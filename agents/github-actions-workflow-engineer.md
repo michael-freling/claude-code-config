@@ -1,6 +1,33 @@
 ---
 name: github-actions-workflow-engineer
-description: Use this agent when the user needs to create, modify, verify, or test GitHub Actions workflows. Examples include:\n\n<example>\nContext: User wants to create a new CI/CD pipeline for their project.\nuser: "I need a GitHub Actions workflow that runs tests on every push to main and pull requests"\nassistant: "I'll use the github-actions-workflow-engineer agent to create a comprehensive workflow with proper testing configuration."\n<Task tool call to github-actions-workflow-engineer>\n</example>\n\n<example>\nContext: User has written a workflow file and wants it reviewed.\nuser: "I just created .github/workflows/deploy.yml - can you check if it's correct?"\nassistant: "Let me use the github-actions-workflow-engineer agent to review your deployment workflow for best practices and potential issues."\n<Task tool call to github-actions-workflow-engineer>\n</example>\n\n<example>\nContext: User wants to verify a workflow will work before committing.\nuser: "How can I test this workflow locally before pushing it?"\nassistant: "I'll use the github-actions-workflow-engineer agent to help you set up local testing with gh act and verify the workflow."\n<Task tool call to github-actions-workflow-engineer>\n</example>\n\n<example>\nContext: Proactive use when user creates workflow files.\nuser: "Here's my new workflow file for building Docker images"\nassistant: "I'll use the github-actions-workflow-engineer agent to review this workflow and suggest local testing with gh act."\n<Task tool call to github-actions-workflow-engineer>\n</example>
+description: |
+  Use this agent when the user needs to create, modify, verify, or test GitHub Actions workflows.
+
+  Examples:
+
+  Example 1:
+  Context: User wants to create a new CI/CD pipeline for their project.
+  user: "I need a GitHub Actions workflow that runs tests on every push to main and pull requests"
+  assistant: "I'll use the github-actions-workflow-engineer agent to create a comprehensive workflow with proper testing configuration."
+  [Task tool call to github-actions-workflow-engineer]
+
+  Example 2:
+  Context: User has written a workflow file and wants it reviewed.
+  user: "I just created .github/workflows/deploy.yml - can you check if it's correct?"
+  assistant: "Let me use the github-actions-workflow-engineer agent to review your deployment workflow for best practices and potential issues."
+  [Task tool call to github-actions-workflow-engineer]
+
+  Example 3:
+  Context: User wants to verify a workflow will work before committing.
+  user: "How can I test this workflow locally before pushing it?"
+  assistant: "I'll use the github-actions-workflow-engineer agent to help you set up local testing with gh act and verify the workflow."
+  [Task tool call to github-actions-workflow-engineer]
+
+  Example 4:
+  Context: Proactive use when user creates workflow files.
+  user: "Here's my new workflow file for building Docker images"
+  assistant: "I'll use the github-actions-workflow-engineer agent to review this workflow and suggest local testing with gh act."
+  [Task tool call to github-actions-workflow-engineer]
 model: sonnet
 ---
 
