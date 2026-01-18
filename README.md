@@ -27,6 +27,7 @@ Slash commands for common workflows:
 | Command | Purpose |
 |---------|---------|
 | `/implement` | Implement features, bug fixes, or refactoring with structured workflow |
+| `/pr-summary` | Generate PR title and description from commits |
 | `/write-product-spec` | Write product requirements and user stories |
 | `/design-ux` | Create UI flows and wireframes |
 | `/design-system-architecture` | Design API, database, and security |
