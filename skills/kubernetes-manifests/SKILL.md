@@ -1,5 +1,5 @@
 ---
-name: kubernetes
+name: kubernetes-manifests
 description: Kubernetes manifest best practices. Use when creating or modifying K8s manifests, Kustomize overlays, or Helm charts.
 ---
 

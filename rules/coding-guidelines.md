@@ -33,18 +33,10 @@
 
 ## Testing
 
-### Writing Testable Code
-
-- **Use dependency injection** for external dependencies (databases, APIs, etc.)
-- **Avoid global state** (global variables, environment variables, external files). Pass dependencies explicitly instead.
-- **Avoid environment-specific branching** in core logic
-- Prefer not to use coverage ignore comments; refactor to make code testable
-
-### Writing Effective Tests
-
-- DO NOT SKIP or IGNORE errors from tests, pre-commits, linters, or any verification. Fix them properly.
-- **Use table-driven testing**
-    - Split happy and error test sets if complicated
-    - Reduces code duplication and improves maintainability
-- Prefer scalar or object values as test case fields, not functions (except for setup/mock functions)
+- **Use dependency injection** for external dependencies
+- **Avoid global state** - pass dependencies explicitly
+- **Use table-driven tests** - group related cases, separate success from error cases
+- **Never skip or ignore test failures** - fix them properly
 - Prefer not to lower coverage thresholds; write more tests instead
+
+For detailed patterns and examples, use the `/write-tests` skill.
