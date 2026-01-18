@@ -52,4 +52,6 @@ uninstall:
 		fi; \
 	done
 	@rm -f $(CLAUDE_DIR)/settings.json
+	@echo "Removing broken symlinks..."
+	@find $(CLAUDE_DIR)/agents $(CLAUDE_DIR)/rules $(CLAUDE_DIR)/commands $(CLAUDE_DIR)/skills -xtype l -delete 2>/dev/null || true
 	@echo "Done."
