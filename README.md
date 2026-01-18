@@ -35,6 +35,27 @@ When starting work on a new project or subproject:
 
 ## Available Commands
 
+### Design Workflow Commands
+
+These commands support a structured design phase before implementation:
+
+| Command | Purpose | Output |
+|---------|---------|--------|
+| `/write-product-spec` | Write product requirements and user stories | `docs/<feature>/product-spec.md` |
+| `/design-ux` | Create UI flows and SVG wireframes | `docs/<feature>/ux-design.md` |
+| `/design-system-architecture` | Design API, database, and security | `docs/<feature>/architecture.md` |
+| `/design-frontend-details` | Design frontend implementation | `docs/<feature>/frontend-design.md` |
+| `/design-backend-details` | Design backend implementation | `docs/<feature>/backend-design.md` |
+
+**Usage:**
+```bash
+/write-product-spec user-auth "User authentication feature"
+/design-ux user-auth "Login and registration flows"
+/design-system-architecture user-auth "Auth service design"
+/design-frontend-details user-auth "Auth UI components"
+/design-backend-details user-auth "Auth service implementation"
+```
+
 ### /document-design
 
 **Purpose**: Analyzes your codebase and creates comprehensive design documentation.
@@ -54,6 +75,38 @@ When starting work on a new project or subproject:
 - When onboarding new team members (human or AI)
 
 **Output**: Creates or updates `.claude/design.md`
+
+## Available Agents
+
+### Design Agents
+
+| Agent | Purpose |
+|-------|---------|
+| `product-manager` | Write product requirements and user stories (no technical details) |
+| `ux-designer` | Create UI flows (Mermaid) and SVG wireframes |
+| `software-architect` | Design API schemas, database schemas, and security |
+| `frontend-design-engineer` | Design frontend implementation by exploring codebase |
+| `backend-design-engineer` | Design backend implementation with performance/testability focus |
+
+### Reviewer Agents
+
+| Agent | Purpose |
+|-------|---------|
+| `product-spec-reviewer` | Review product specs for completeness and clarity |
+| `ux-design-reviewer` | Review UX designs for usability and accessibility |
+| `frontend-design-reviewer` | Review frontend designs for patterns and reusability |
+| `backend-design-reviewer` | Review backend designs for scalability and testability |
+| `architecture-reviewer` | Review system architecture for quality |
+
+### Implementation Agents
+
+| Agent | Purpose |
+|-------|---------|
+| `golang-engineer` | Implement Go code |
+| `typescript-engineer` | Implement TypeScript code |
+| `golang-code-reviewer` | Review Go code |
+| `typescript-code-reviewer` | Review TypeScript code |
+| `github-actions-workflow-engineer` | Create and verify GitHub Actions workflows |
 
 ## Available Skills
 
@@ -78,6 +131,29 @@ When starting work on a new project or subproject:
 **Usage**: `/skill feature-dev`
 
 ## Workflow
+
+### Design Workflow
+
+For new features, follow this design sequence:
+
+```
+1. /write-product-spec    → Product requirements (WHAT and WHY)
+         ↓
+2. /design-ux             → User flows and wireframes
+         ↓
+3. /design-system-architecture → API, database, security design
+         ↓
+4. /design-frontend-details    → Frontend implementation design
+   /design-backend-details     → Backend implementation design
+         ↓
+5. /feature                → Implementation
+```
+
+Each design phase:
+1. Uses a specialized design agent
+2. Gets reviewed by a corresponding reviewer agent
+3. Requires user confirmation before finalizing
+4. Outputs to `docs/<feature-name>/`
 
 ### Recommended Development Flow
 
