@@ -24,6 +24,25 @@ paths:
   func New(required string, opts ...Option) *T { ... }
   ```
 
+## Concurrency
+
+Prefer `golang.org/x/sync/errgroup` over `sync.WaitGroup` for managing concurrent goroutines:
+
+- Provides built-in error propagation
+- Supports context cancellation via `errgroup.WithContext`
+- Cleaner API with `eg.Go()` instead of manual `wg.Add/Done`
+
+```go
+var eg errgroup.Group
+eg.Go(func() error {
+    // Goroutine work
+    return nil
+})
+if err := eg.Wait(); err != nil {
+    return fmt.Errorf("eg.Wait: %w", err)
+}
+```
+
 ## Testing
 
 - Use want/got (never expected/actual)

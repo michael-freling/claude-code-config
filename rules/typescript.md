@@ -12,7 +12,6 @@ paths: **/*.ts, **/*.tsx
   // Good - import from file
   import Icon from './icon.svg'
   ```
-
 ## React Hooks
 
 - Only use `useMemo` when there is a real performance need (expensive computation or preventing unnecessary child re-renders). Add a brief explanation of why it's needed.

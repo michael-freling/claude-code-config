@@ -17,6 +17,7 @@
 - Delete assignments of the default or zero values.
 - **Prefer to continue or return early** than nesting code
    - "if is bad, else is worse"
+- **Load binary data from files** instead of embedding base64 or other encoded strings inline (images, fonts, certificates, etc.)
 
 ## External I/O
 
