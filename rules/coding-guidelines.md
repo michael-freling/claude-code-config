@@ -2,8 +2,23 @@
 
 ## Principles
 
-- Simplicity is the most important thing. Follow simplicity rule.
+- **Simplicity is the most important thing.** Minimize the final complexity of the codebase—not the size of the change.
+  - Optimize for a clean end state, not a minimal diff
+  - **DRY (Don't Repeat Yourself)**: Extract shared logic, configs, and patterns into reusable components
+  - Minimize redundancy and fragmentation
+  - Group related things together; specify differences only where they exist
+  - Larger refactoring is acceptable if it results in a simpler final state
+  - **Breaking changes are acceptable** unless backward compatibility is explicitly required by users or project constraints
 - Explicit is better than implicit.
+
+### Simplicity Example: High Cohesion
+
+Split functions by actual responsibility, not by caller convenience.
+
+**Scenario**: Function A is used by B, C, and D, but D only uses part of A. A new feature is needed for B and C only.
+
+- **Wrong**: Add feature to A, making it complex for D's use case
+- **Right**: Split A into X (core, used by all) and Y (extended, used by B/C only)
 
 ## Dependencies
 
