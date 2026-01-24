@@ -1,10 +1,10 @@
 ---
-description: Implement code changes (features, bug fixes, or refactoring) following a structured workflow
+description: Implement code changes and create a PR, fixing CI errors until it passes
 argument-hint: "describe the feature, bug fix, or refactoring needed"
 allowed-tools: ["*"]
 ---
 
-# Implement
+# Implement PR
 
 $ARGUMENTS
 
@@ -72,27 +72,27 @@ Verify the implementation is correct:
 - Manually verify the change works as expected
 - Check for regressions
 
-### Phase 6: PR Workflow (If Requested)
+### Phase 6: Commit
 
-If the user asks to create a PR:
-
-**6a. Commit with Appropriate Granularity**
-- Group related changes into logical commits
+Group related changes into logical commits:
 - Write clear commit messages describing the "why"
 - Separate refactoring from feature/fix changes when possible
 
-**6b. Create PR**
+### Phase 7: Create PR
+
+Push changes and create the PR:
 - Push changes to remote
 - Create PR with clear summary and test plan
 
-**6c. Verify CI Passes**
-- Wait for CI to complete (at least 1 minute for jobs to start)
-- Check CI status every 5 minutes until complete
+### Phase 8: Fix CI Until Green
 
-**6d. Fix Until CI Passes**
-- If CI fails, analyze the errors
-- Fix issues and push new commits
-- Repeat until CI passes
+Monitor and fix CI:
+1. Wait for CI to complete (at least 1 minute for jobs to start)
+2. Check CI status every 5 minutes until complete
+3. If CI fails:
+   - Analyze the errors
+   - Fix issues and push new commits
+   - Repeat until CI passes
 
 ## Guidelines
 

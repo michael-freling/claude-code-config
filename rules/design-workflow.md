@@ -16,7 +16,7 @@ Follow this sequence when designing features:
 4. /design-frontend-details    → Frontend implementation design
    /design-backend-details     → Backend implementation design
          ↓
-5. /implement             → Implementation
+5. /implement-pr          → Implementation + PR
 ```
 
 ## Output Directory Convention
