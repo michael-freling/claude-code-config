@@ -14,6 +14,7 @@ $ARGUMENTS
 |------|------|----------------|
 | **Feature** | Add new functionality | - |
 | **Fix** | Fix broken behavior | Must reproduce bug first |
+| **Flaky Test Fix** | Eliminate test non-determinism | Must run tests multiple times to verify stability |
 | **Refactor** | Improve structure, same behavior | Must preserve existing behavior |
 
 ## Workflow
@@ -21,10 +22,11 @@ $ARGUMENTS
 ### Phase 1: Understand
 
 Clarify what the user wants:
-- Identify the type of change (feature, fix, or refactor)
+- Identify the type of change (feature, fix, flaky test fix, or refactor)
 - Ask clarifying questions if requirements are ambiguous
 - Understand scope and success criteria
 - For fixes: identify reproduction steps and expected vs actual behavior
+- For flaky test fixes: identify which test(s) are flaky and their failure patterns
 
 ### Phase 2: Explore
 
@@ -32,6 +34,7 @@ Investigate the codebase:
 - Analyze existing structure and patterns
 - For features: identify implementation approaches and trade-offs
 - For fixes: reproduce the error and find root cause
+- For flaky test fixes: identify the source of non-determinism (timing, ordering, shared state, external dependencies, race conditions)
 - For refactors: identify code smells and improvement opportunities
 
 ### Phase 3: Present Plan
@@ -57,6 +60,12 @@ Once approved, implement the changes:
 1. Implement the feature
 2. Write tests for new functionality
 
+**For flaky test fixes:**
+1. Run the flaky test multiple times (5-10 runs) to confirm flakiness and understand failure rate
+2. Identify the root cause of non-determinism
+3. Implement the fix (e.g., add proper synchronization, remove timing dependencies, isolate shared state)
+4. Run the test multiple times (at least 10 runs) to verify it's now stable
+
 **For refactors:**
 1. Ensure existing tests pass before changes
 2. Make structural changes
@@ -71,6 +80,15 @@ Verify the implementation is correct:
 - Run linters and fix any issues
 - Manually verify the change works as expected
 - Check for regressions
+
+**For flaky test fixes - additional verification:**
+- Run the previously flaky test at least 10 consecutive times
+- All runs must pass to confirm the fix is stable
+- Example verification commands:
+  - Go: `for i in {1..10}; do go test -v -run TestName ./path/... || exit 1; done`
+  - Jest: `for i in {1..10}; do npx jest --testNamePattern="test name" || exit 1; done`
+  - pytest: `for i in {1..10}; do pytest -v test_file.py::test_name || exit 1; done`
+- If any run fails, the fix is incomplete - investigate further
 
 ### Phase 6: Commit
 
@@ -100,4 +118,5 @@ Monitor and fix CI:
 - Adhere to project-specific guidelines if available
 - Maintain or increase test coverage
 - For fixes: always reproduce first, understand root cause
+- For flaky test fixes: always verify stability with multiple runs (minimum 10)
 - For refactors: never change behavior, only structure
