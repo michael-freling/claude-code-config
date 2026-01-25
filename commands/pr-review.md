@@ -79,6 +79,7 @@ Analyze for ALL code quality aspects:
 - **Concurrency**: Race conditions, deadlocks, thread safety
 - **Security**: Input validation, injection risks, sensitive data exposure
 - **Style consistency**: Alignment with existing codebase patterns
+- **Integration completeness**: When new functions, methods, interfaces, or types are added without callers, check if the PR description explains why; if not explained, ask why the new code isn't being used yet
 
 ## Phase 5: Post Review
 
