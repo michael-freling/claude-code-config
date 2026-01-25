@@ -40,6 +40,7 @@ Split functions by actual responsibility, not by caller convenience.
   - Reduces network round-trips
   - Enables optimized bulk queries and writes
 - **Transactions** for multi-step writes to ensure atomicity
+- **Pass values from program, not SQL functions** - compute values in application code instead of using SQL functions like `NOW()` or `CURRENT_TIMESTAMP`; enables tests to inject controlled values
 
 ## Logging
 
