@@ -27,6 +27,7 @@ Split functions by actual responsibility, not by caller convenience.
 - Delete deadcodes.
 - Delete assignments of the default or zero values.
 - **Load binary data from files** instead of embedding base64 or other encoded strings inline (images, fonts, certificates, etc.)
+- **Validate only at context boundaries** - add defensive checks (nil checks, validation, error handling) only where data crosses trust domains: incoming client requests and outgoing third-party API responses; internal code should trust internal code
 
 ## Code Reuse
 
