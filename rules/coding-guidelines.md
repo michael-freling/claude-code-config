@@ -16,6 +16,14 @@ Split functions by actual responsibility, not by caller convenience.
 - **Right**: Split A into X (core, used by all) and Y (extended, used by B/C only)
 
 
+### Simplicity Example: Separate Success and Failure Paths
+
+When a method handles both success and failure outcomes with substantially different logic, split into separate methods.
+
+- **Wrong**: `CompleteJob(success bool)` with branching logic based on the flag
+- **Right**: `CompleteJob()` and `FailJob()` as separate methods with clear responsibilities
+
+
 ## Dependencies
 
 - When installing applications, libraries, or tools, always check and use the most latest and stable version with compatibility with existing systems.
@@ -42,6 +50,7 @@ Split functions by actual responsibility, not by caller convenience.
   - Enables optimized bulk queries and writes
 - **Transactions** for multi-step writes to ensure atomicity
 - **Pass values from program, not SQL functions** - compute values in application code instead of using SQL functions like `NOW()` or `CURRENT_TIMESTAMP`; enables tests to inject controlled values
+- **Avoid redundant queries** - don't query external systems for data already available in the current context (message payload, request, event object); don't query the same record multiple times in a single operation
 
 ## Logging
 
@@ -57,3 +66,8 @@ Split functions by actual responsibility, not by caller convenience.
 - Prefer not to lower coverage thresholds; write more tests instead
 
 For detailed patterns and examples, use the `/write-tests` skill.
+
+## Concurrency
+
+- **Synchronize shared state** - when multiple goroutines/threads access shared mutable state, use proper locking (mutex, channels, atomic operations)
+- **Document retry policies** - when implementing retry logic, document or make configurable: max retry count, backoff strategy, which errors are retryable
