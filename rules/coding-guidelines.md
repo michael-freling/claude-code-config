@@ -3,13 +3,8 @@
 ## Principles
 
 - **Simplicity is the most important thing.** Minimize the final complexity of the codebase—not the size of the change.
-  - Optimize for a clean end state, not a minimal diff
-  - **DRY (Don't Repeat Yourself)**: Extract shared logic, configs, and patterns into reusable components
-  - Minimize redundancy and fragmentation
-  - Group related things together; specify differences only where they exist
-  - Larger refactoring is acceptable if it results in a simpler final state
   - **Breaking changes are acceptable** unless backward compatibility is explicitly required by users or project constraints
-- Explicit is better than implicit.
+
 
 ### Simplicity Example: High Cohesion
 
@@ -19,6 +14,15 @@ Split functions by actual responsibility, not by caller convenience.
 
 - **Wrong**: Add feature to A, making it complex for D's use case
 - **Right**: Split A into X (core, used by all) and Y (extended, used by B/C only)
+
+
+### Simplicity Example: Separate Success and Failure Paths
+
+When a method handles both success and failure outcomes with substantially different logic, split into separate methods.
+
+- **Wrong**: `CompleteJob(success bool)` with branching logic based on the flag
+- **Right**: `CompleteJob()` and `FailJob()` as separate methods with clear responsibilities
+
 
 ## Dependencies
 
@@ -30,9 +34,14 @@ Split functions by actual responsibility, not by caller convenience.
 - Write the code with minimal comments — only high-level explanations of purpose, architecture, or non-obvious decisions. No line-by-line comments
 - Delete deadcodes.
 - Delete assignments of the default or zero values.
-- **Prefer to continue or return early** than nesting code
-   - "if is bad, else is worse"
 - **Load binary data from files** instead of embedding base64 or other encoded strings inline (images, fonts, certificates, etc.)
+- **Validate only at context boundaries** - add defensive checks (nil checks, validation, error handling) only where data crosses trust domains: incoming client requests and outgoing third-party API responses; internal code should trust internal code
+
+## Code Reuse
+
+- **Single definition** - each abstraction (interface, type, function) should have exactly one definition in the codebase; if multiple packages need it, define once and import
+- **Provider owns shared abstractions** - define abstractions in the provider/implementation package, not in each consumer
+- **Check existing content before writing** - search for similar code, logic, or documentation before adding new content; reuse or extend existing patterns rather than duplicating; when consolidating files, read the destination thoroughly first
 
 ## External I/O
 
@@ -40,19 +49,25 @@ Split functions by actual responsibility, not by caller convenience.
   - Reduces network round-trips
   - Enables optimized bulk queries and writes
 - **Transactions** for multi-step writes to ensure atomicity
+- **Pass values from program, not SQL functions** - compute values in application code instead of using SQL functions like `NOW()` or `CURRENT_TIMESTAMP`; enables tests to inject controlled values
+- **Avoid redundant queries** - don't query external systems for data already available in the current context (message payload, request, event object); don't query the same record multiple times in a single operation
 
 ## Logging
 
-- Use structured logging with key-value pairs
 - Log levels: Debug (detailed), Info (normal), Warn (recoverable), Error (unexpected)
-- Never log sensitive data (passwords, tokens, PII)
 
 ## Testing
 
-- **Use dependency injection** for external dependencies
-- **Avoid global state** - pass dependencies explicitly
+- **Avoid global state** - use dependency injection instead of relying on package-level variables, struct fields with shared state, databases, or environment variables
+  - Prevents flaky tests from shared mutable state
+  - Enables concurrent test execution (`t.Parallel()`)
 - **Use table-driven tests** - group related cases, separate success from error cases
 - **Never skip or ignore test failures** - fix them properly
 - Prefer not to lower coverage thresholds; write more tests instead
 
 For detailed patterns and examples, use the `/write-tests` skill.
+
+## Concurrency
+
+- **Synchronize shared state** - when multiple goroutines/threads access shared mutable state, use proper locking (mutex, channels, atomic operations)
+- **Document retry policies** - when implementing retry logic, document or make configurable: max retry count, backoff strategy, which errors are retryable

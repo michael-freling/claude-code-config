@@ -26,7 +26,7 @@ Slash commands for common workflows:
 
 | Command | Purpose |
 |---------|---------|
-| `/implement` | Implement features, bug fixes, or refactoring with structured workflow |
+| `/implement-pr` | Implement code changes and create a PR, fixing CI errors until it passes |
 | `/pr-summary` | Generate PR title and description from commits |
 | `/write-product-spec` | Write product requirements and user stories |
 | `/design-ux` | Create UI flows and wireframes |
@@ -101,16 +101,18 @@ For larger features, follow this sequence:
 4. /design-frontend-details   → Frontend implementation design
    /design-backend-details    → Backend implementation design
          ↓
-5. /implement                 → Implementation
+5. /implement-pr              → Implementation + PR
 ```
 
 ## Implementation Workflow
 
-The `/implement` command follows this workflow:
+The `/implement-pr` command follows this workflow:
 
 1. **Understand** - Clarify requirements, identify change type (feature/fix/refactor)
 2. **Explore** - Analyze codebase, find root cause (for fixes), evaluate options
 3. **Present Plan** - Show plan and wait for user approval
 4. **Implement** - Write code and tests
 5. **Verify** - Run tests, linters, manual verification
-6. **PR Workflow** (if requested) - Commit, create PR, verify CI, fix until CI passes
+6. **Commit** - Group related changes into logical commits
+7. **Create PR** - Push and create PR with summary and test plan
+8. **Fix CI Until Green** - Monitor CI, fix failures, repeat until passing
