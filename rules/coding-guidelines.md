@@ -4,6 +4,7 @@
 
 - **Simplicity is the most important thing.** Minimize the final complexity of the codebase—not the size of the change.
   - **Breaking changes are acceptable** unless backward compatibility is explicitly required by users or project constraints
+- **Environment-agnostic code** - do not add environment-specific branches (dev/staging/prod checks, OS-specific paths, CI-specific logic) in application code; use configuration, environment variables, or dependency injection so the same code runs consistently across all environments
 
 
 ### Simplicity Example: High Cohesion
