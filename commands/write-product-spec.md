@@ -1,5 +1,5 @@
 ---
-description: Write product specification with requirements and user stories (no technical details)
+description: Write product specification with user stories (no technical details)
 argument-hint: "<feature-name> <feature description>"
 allowed-tools: ["Read", "Glob", "Grep", "Task", "Write"]
 ---
@@ -21,7 +21,6 @@ Use the product-manager agent to:
 
 Use the product-manager agent to:
 - Write user stories with acceptance criteria
-- Define functional requirements
 - Define non-functional requirements
 - Document constraints and assumptions
 - Identify out-of-scope items
@@ -45,12 +44,10 @@ Write the product specification to: `docs/<feature-name>/product-spec.md`
 ## Output Structure
 
 The output file should follow the Product Specification template:
-- Executive Summary
 - Problem Statement
 - Goals and Success Metrics
 - Target Users
 - User Stories with Acceptance Criteria
-- Functional Requirements
 - Non-Functional Requirements
 - Constraints and Assumptions
 - Out of Scope

@@ -60,17 +60,15 @@ I want [goal/desire],
 So that [benefit/reason].
 ```
 
-**Acceptance Criteria Format:**
-```
-Given [context],
-When [action],
-Then [expected result].
-```
+**Acceptance Criteria:**
+- Describe observable user outcomes, not implementation steps
+- BAD: "When user clicks the submit button, Then the form sends a POST request and the database saves the record"
+- GOOD: "When user submits the form, Then user sees a confirmation that the entry was saved"
+- Never reference UI components (buttons, modals, dropdowns), API calls, database operations, or backend behavior
 
 ### Phase 3: Product Design
 
 **Objectives:**
-- Document functional requirements
 - Document non-functional requirements
 - Identify constraints and assumptions
 
@@ -88,23 +86,20 @@ Then [expected result].
 ```markdown
 # Product Specification: [Feature Name]
 
-## 1. Executive Summary
-Brief overview of the feature and its value proposition.
-
-## 2. Problem Statement
+## 1. Problem Statement
 What problem are we solving? Why does it matter?
 
-## 3. Goals and Success Metrics
+## 2. Goals and Success Metrics
 - Goal 1: [Measurable outcome]
 - Goal 2: [Measurable outcome]
 
-## 4. Target Users
+## 3. Target Users
 ### User Type 1
 - Description
 - Needs
 - Pain points
 
-## 5. User Stories
+## 4. User Stories
 
 ### Story 1: [Title]
 As a [user type],
@@ -114,21 +109,17 @@ So that [benefit].
 **Acceptance Criteria:**
 - Given [context], When [action], Then [result]
 
-## 6. Functional Requirements
-- FR1: [Requirement description]
-- FR2: [Requirement description]
-
-## 7. Non-Functional Requirements
+## 5. Non-Functional Requirements
 - NFR1: [Performance, security, accessibility, etc.]
 
-## 8. Constraints and Assumptions
+## 6. Constraints and Assumptions
 - Constraint 1: [Description]
 - Assumption 1: [Description]
 
-## 9. Out of Scope
+## 7. Out of Scope
 - [Items explicitly not included in this specification]
 
-## 10. Open Questions
+## 8. Open Questions
 - [Questions that need clarification]
 ```
 
