@@ -46,12 +46,6 @@ Based on the analysis:
 ```markdown
 ## Summary
 <2-4 bullet points describing the main changes>
-
-## Changes
-<list of significant changes, grouped by category if needed>
-
-## Test plan
-<how to verify the changes work>
 ```
 
 ### 4. Update the PR
@@ -59,12 +53,6 @@ Based on the analysis:
 ```bash
 gh pr edit --title "new title" --body "$(cat <<'EOF'
 ## Summary
-...
-
-## Changes
-...
-
-## Test plan
 ...
 EOF
 )"

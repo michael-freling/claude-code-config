@@ -4,6 +4,7 @@
 
 - **Simplicity is the most important thing.** Minimize the final complexity of the codebase—not the size of the change.
   - **Breaking changes are acceptable** unless backward compatibility is explicitly required by users or project constraints
+- **Environment-agnostic code** - do not add environment-specific branches (dev/staging/prod checks, OS-specific paths, CI-specific logic) in application code; use configuration, environment variables, or dependency injection so the same code runs consistently across all environments
 
 
 ### Simplicity Example: High Cohesion
@@ -40,6 +41,7 @@ When a method handles both success and failure outcomes with substantially diffe
 ## Code Reuse
 
 - **Single definition** - each abstraction (interface, type, function) should have exactly one definition in the codebase; if multiple packages need it, define once and import
+- **Named constants over magic values** - extract magic numbers and strings into named constants when used in multiple places
 - **Provider owns shared abstractions** - define abstractions in the provider/implementation package, not in each consumer
 - **Check existing content before writing** - search for similar code, logic, or documentation before adding new content; reuse or extend existing patterns rather than duplicating; when consolidating files, read the destination thoroughly first
 
