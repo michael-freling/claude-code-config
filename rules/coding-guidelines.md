@@ -41,6 +41,7 @@ When a method handles both success and failure outcomes with substantially diffe
 ## Code Reuse
 
 - **Single definition** - each abstraction (interface, type, function) should have exactly one definition in the codebase; if multiple packages need it, define once and import
+- **Named constants over magic values** - extract magic numbers and strings into named constants when used in multiple places
 - **Provider owns shared abstractions** - define abstractions in the provider/implementation package, not in each consumer
 - **Check existing content before writing** - search for similar code, logic, or documentation before adding new content; reuse or extend existing patterns rather than duplicating; when consolidating files, read the destination thoroughly first
 
