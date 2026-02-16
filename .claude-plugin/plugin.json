@@ -1,7 +1,7 @@
 {
   "name": "michael-config",
   "description": "Shared coding guidelines, agents, and skills",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "author": {
     "name": "Michael Freling"
   },
