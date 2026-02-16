@@ -1,0 +1,9 @@
+{
+  "name": "michael-config",
+  "description": "Shared coding guidelines, agents, and skills",
+  "version": "1.0.0",
+  "author": {
+    "name": "Michael Freling"
+  },
+  "repository": "https://github.com/michael-freling/claude-code-config"
+}

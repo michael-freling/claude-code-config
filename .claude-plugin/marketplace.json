@@ -1,0 +1,12 @@
+{
+  "name": "michael-freling",
+  "owner": {
+    "name": "Michael Freling"
+  },
+  "plugins": [
+    {
+      "name": "michael-config",
+      "source": "./"
+    }
+  ]
+}

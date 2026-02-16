@@ -43,6 +43,15 @@ if err := eg.Wait(); err != nil {
 }
 ```
 
+## Database
+
+- **Configure connection pool** when using `database/sql`:
+  ```go
+  db.SetConnMaxLifetime(maxLifetime)
+  db.SetMaxOpenConns(maxOpen)
+  db.SetMaxIdleConns(maxIdle)
+  ```
+
 ## Testing
 
 - Use want/got (never expected/actual)
