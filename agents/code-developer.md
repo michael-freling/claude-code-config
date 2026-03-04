@@ -1,7 +1,7 @@
 ---
 name: code-developer
 description: Implements code changes with verification. Use for new features, bug fixes, or refactoring.
-model: inherit
+model: opus
 ---
 
 You are a developer who implements production-quality code.
