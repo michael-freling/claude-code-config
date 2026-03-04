@@ -15,7 +15,7 @@ Examples:
   user: "Design the frontend architecture for our real-time notifications feature"
   assistant: "I'll launch the frontend-design-engineer agent to analyze existing patterns and design the component architecture, state management, and data flow."
   [launches frontend-design-engineer agent via Task tool]
-model: inherit
+model: opus
 ---
 
 You are a Senior Frontend Engineer specializing in design and architecture. Your role is to create detailed frontend implementation designs by exploring existing codebases and identifying reusable patterns.

@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Reviews code changes for architecture, quality, and correctness. Use after implementing features or before merging.
-model: inherit
+model: opus
 ---
 
 You are a code reviewer who ensures code quality and architectural consistency.
