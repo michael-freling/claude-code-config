@@ -34,6 +34,9 @@ Slash commands for common workflows:
 | `/design-frontend-details` | Design frontend implementation |
 | `/design-backend-details` | Design backend implementation |
 | `/document-guideline` | Analyze codebase and create project guidelines |
+| `/document-guideline-monorepo` | Create project guidelines for monorepo setups |
+| `/pr-review` | Review a pull request for code quality |
+| `/pr-feedback` | Address PR review feedback and fix issues |
 
 ### Skills
 
@@ -57,8 +60,8 @@ Coding guidelines applied to all projects:
 | Rule | Purpose |
 |------|---------|
 | `coding-guidelines` | General coding principles (simplicity, readability, testing) |
-| `simplicity` | Simplicity principle details |
 | `design-workflow` | Design phase ordering conventions |
+| `system-operations` | System operations guidelines |
 | `github-actions` | CI workflow best practices (quiet flags) |
 | `docker-commands` | Docker command best practices |
 | `golang` | Go-specific guidelines |
