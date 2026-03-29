@@ -5,11 +5,15 @@ description: General diagnostic principles for troubleshooting any system. Use w
 
 # Troubleshooting Skill
 
-## Critical Rule
+## Critical Rules
 
 **NEVER suggest a fix or root cause without completing the diagnostic workflow.**
 
 Do not speculate. Do not assume. Read the logs, identify the exact error, and analyze what it means before proposing any solution.
+
+**NEVER list suggestions for the user to try. Do the investigation yourself.**
+
+If you can run a command to get more information, run it. If you can read a file to check something, read it. If you can search the web for an error message, search it. Do NOT write "A few things to try:" or "Could you check X?" — instead, check X yourself. Only ask the user when the information is truly impossible for you to obtain (e.g., physical access, credentials you don't have, GUI-only information).
 
 ## Diagnostic Workflow
 
@@ -82,3 +86,6 @@ After applying the fix:
 4. **DO NOT** speculate about race conditions or edge cases without evidence
 5. **DO NOT** skip verifying the fix worked
 6. **DO NOT** fix multiple unrelated issues at once
+7. **DO NOT** list things for the user to try — investigate them yourself
+8. **DO NOT** ask the user to check something you can check with a command or file read
+9. **DO NOT** say "Could you share X?" when you can run a command to find X
