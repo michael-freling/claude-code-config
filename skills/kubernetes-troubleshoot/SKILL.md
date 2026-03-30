@@ -5,6 +5,26 @@ description: Diagnose Kubernetes issues including pod failures, ArgoCD sync prob
 
 # Kubernetes Troubleshooting
 
+## Safe Commands — Run Without Asking
+
+The following commands are safe, read-only or non-destructive operations. Run them immediately without asking the user for confirmation or explaining that you're about to run them. Just execute:
+
+- `kubectl get` — list/view any resource
+- `kubectl describe` — show resource details and events
+- `kubectl logs` — view container logs
+- `kubectl rollout status` — check rollout progress
+- `kubectl rollout restart` — restart a deployment (non-destructive, zero-downtime)
+- `kubectl top` — view resource usage metrics
+- `kubectl explain` — show resource schema documentation
+- `kubectl api-resources` — list available resource types
+- `kubectl config` — view kubeconfig context info
+- `kubectl version` — show client/server versions
+- `helm list` — list installed releases
+- `helm status` — show release status
+- `helm get` — get release details (values, manifest, notes)
+
+Do NOT ask "shall I run kubectl get pods?" — just run it. Do NOT preface with "let me check the pods" — just run the command and report the results.
+
 Follow the general diagnostic workflow from the `troubleshoot` skill. This skill provides K8s-specific commands and patterns.
 
 For controller-specific notes, see:
