@@ -65,6 +65,7 @@ skills/<language>-coding-guidelines/
 - Does each example file include OpenTelemetry instrumentation inline where applicable?
 - Are example files scoped to their application type?
 - Do example files complement the template without repeating general principles?
+- For Go: does the SKILL.md include the Go Guidelines section?
 - For frontend languages: does the SKILL.md include the Frontend Guidelines section?
 
 ## Coding Guidelines Template
@@ -204,6 +205,20 @@ Accept the minimum type or interface a function needs. This reduces coupling and
 - **OpenTelemetry** as the standard for metrics, logs, and traces — set up the SDK at bootstrap and add instrumentation as needed
 - **RED metrics** (Rate, Errors, Duration) for HTTP and gRPC servers at minimum
 - **Avoid high cardinality** in metric labels — TSDB backends handle high cardinality poorly
+
+### Go Guidelines
+
+Include this section in the SKILL.md only when the target language is Go. These are Go-specific idioms that must appear in the generated skill.
+
+- **Every error must be checked or returned** — never use `_` to discard errors
+- **Wrap errors with `%w`** — include what operation failed and with what input:
+  - Wrong: `return fmt.Errorf("failed: %w", err)`
+  - Right: `return fmt.Errorf("find user by ID %d: %w", userID, err)`
+- **Use `errors.Is()` and `errors.As()`** — never compare error strings
+- **Functional options** for optional constructor parameters: `type Option func(*options)`, `func New(required string, opts ...Option) *T`
+- **Prefer `golang.org/x/sync/errgroup`** over `sync.WaitGroup` — built-in error propagation, context cancellation via `errgroup.WithContext`, cleaner API with `eg.Go()`
+- **Configure connection pool** when using `database/sql`: `SetConnMaxLifetime`, `SetMaxOpenConns`, `SetMaxIdleConns`
+- **Testing**: use want/got (never expected/actual), **assert** when test can continue / **require** when it should stop, **go.uber.org/gomock** for mocks
 
 ### Frontend Guidelines
 
