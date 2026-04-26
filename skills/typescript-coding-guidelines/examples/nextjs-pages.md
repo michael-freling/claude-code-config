@@ -1,375 +1,194 @@
-# Next.js App Router Patterns
+# Next.js Pages & Layouts (App Router)
 
-## Server Component with Data Fetching
+## Page with Server Component Data Fetching
 
 ```typescript
-// app/users/[id]/page.tsx
+import { tracer } from "@/lib/telemetry";
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
 }
 
-async function UserPage({ params, searchParams }: PageProps) {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const { tab } = await searchParams;
-
-  const user = await db.user.findUniqueOrThrow({
-    where: { id },
-    include: { posts: tab === "posts" },
-  });
-
-  return (
-    <main>
-      <h1>{user.name}</h1>
-      {tab === "posts" && <PostList posts={user.posts} />}
-    </main>
-  );
+  const product = await productService.getById(id);
+  return {
+    title: product?.name ?? "Product Not Found",
+  };
 }
 
-export default UserPage;
-```
+export default async function ProductPage({ params }: PageProps) {
+  return tracer.startActiveSpan("ProductPage", async (span) => {
+    try {
+      const { id } = await params;
+      const product = await productService.getById(id);
+      if (!product) notFound();
 
-```typescript
-// app/users/[id]/loading.tsx
-
-export default function Loading() {
-  return <UserSkeleton />;
-}
-```
-
-```typescript
-// app/users/[id]/error.tsx
-"use client";
-
-interface ErrorProps {
-  error: Error & { digest?: string };
-  reset: () => void;
-}
-
-export default function Error({ error, reset }: ErrorProps) {
-  return (
-    <div>
-      <h2>Something went wrong</h2>
-      <p>{error.message}</p>
-      <button onClick={reset}>Try again</button>
-    </div>
-  );
-}
-```
-
-## Server Action with Form Handling
-
-```typescript
-// app/users/actions.ts
-"use server";
-
-import { z } from "zod";
-import { trace } from "@opentelemetry/api";
-
-const CreateUserSchema = z.object({
-  name: z.string().min(1).max(100),
-  email: z.string().email(),
-  role: z.enum(["admin", "member"]),
-});
-
-type CreateUserResult =
-  | { success: true; data: User }
-  | { success: false; error: string };
-
-export async function createUser(
-  _prevState: CreateUserResult | null,
-  formData: FormData,
-): Promise<CreateUserResult> {
-  const span = trace.getTracer("actions").startSpan("createUser");
-
-  try {
-    const parsed = CreateUserSchema.safeParse({
-      name: formData.get("name"),
-      email: formData.get("email"),
-      role: formData.get("role"),
-    });
-
-    if (!parsed.success) {
-      return {
-        success: false,
-        error: parsed.error.issues.map((i) => i.message).join(", "),
-      };
-    }
-
-    const user = await db.user.create({ data: parsed.data });
-    revalidatePath("/users");
-
-    return { success: true, data: user };
-  } catch (err) {
-    span.recordException(err as Error);
-    return { success: false, error: "Failed to create user" };
-  } finally {
-    span.end();
-  }
-}
-```
-
-```typescript
-// app/users/create-user-form.tsx
-"use client";
-
-import { useActionState } from "react";
-import { createUser } from "./actions";
-
-export function CreateUserForm() {
-  const [state, formAction, isPending] = useActionState(createUser, null);
-
-  return (
-    <form action={formAction}>
-      <input name="name" required />
-      <input name="email" type="email" required />
-      <select name="role">
-        <option value="member">Member</option>
-        <option value="admin">Admin</option>
-      </select>
-
-      <button type="submit" disabled={isPending}>
-        {isPending ? "Creating..." : "Create User"}
-      </button>
-
-      {state && !state.success && (
-        <p role="alert">{state.error}</p>
-      )}
-    </form>
-  );
-}
-```
-
-## Client Component with Interactivity
-
-```typescript
-// app/users/user-card.tsx
-"use client";
-
-import { useState, useTransition } from "react";
-import { deleteUser } from "./actions";
-
-interface UserCardProps {
-  user: User;
-}
-
-export function UserCard({ user }: UserCardProps) {
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  function handleDelete() {
-    startTransition(async () => {
-      await deleteUser(user.id);
-      setShowConfirm(false);
-    });
-  }
-
-  return (
-    <div>
-      <h3>{user.name}</h3>
-      <p>{user.email}</p>
-
-      {showConfirm ? (
+      return (
         <div>
-          <p>Delete this user?</p>
-          <button onClick={handleDelete} disabled={isPending}>
-            {isPending ? "Deleting..." : "Confirm"}
-          </button>
-          <button onClick={() => setShowConfirm(false)}>Cancel</button>
+          <h1>{product.name}</h1>
+          <p>{product.description}</p>
+          <ProductActions productId={product.id} />
         </div>
-      ) : (
-        <button onClick={() => setShowConfirm(true)}>Delete</button>
-      )}
-    </div>
-  );
+      );
+    } finally {
+      span.end();
+    }
+  });
 }
 ```
 
-## Layout with Shared Data
+## Layout with Shared Providers
 
 ```typescript
-// app/layout.tsx
-
-import type { Metadata } from "next";
-import { ThemeProvider } from "@/components/theme-provider";
-import { AuthProvider } from "@/components/auth-provider";
-
-export const metadata: Metadata = {
-  title: {
-    template: "%s | MyApp",
-    default: "MyApp",
-  },
-  description: "Application description",
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <body>
-        <AuthProvider>
-          <ThemeProvider>
-            {children}
-          </ThemeProvider>
-        </AuthProvider>
+        <Header />
+        <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
+        <Footer />
       </body>
     </html>
   );
 }
 ```
 
+## Loading State
+
 ```typescript
-// app/dashboard/layout.tsx
-
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
-import { DashboardNav } from "./dashboard-nav";
-
-export default async function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const session = await getSession();
-  if (!session) {
-    redirect("/login");
-  }
-
+export default function Loading() {
   return (
-    <div>
-      <DashboardNav user={session.user} />
-      <main>{children}</main>
+    <div className="space-y-4">
+      <div className="h-8 w-64 animate-pulse rounded bg-gray-200" />
+      <div className="h-4 w-full animate-pulse rounded bg-gray-200" />
+      <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
     </div>
   );
 }
 ```
 
-```typescript
-// app/dashboard/settings/page.tsx
-
-import type { Metadata } from "next";
-
-export async function generateMetadata(): Promise<Metadata> {
-  const session = await getSession();
-
-  return {
-    title: `Settings - ${session?.user.name}`,
-  };
-}
-
-export default async function SettingsPage() {
-  const session = await getSession();
-
-  return <SettingsForm user={session!.user} />;
-}
-```
-
-## Middleware
-
-```typescript
-// middleware.ts
-
-import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth";
-
-const PUBLIC_PATHS = ["/login", "/signup", "/api/health"];
-
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
-    return NextResponse.next();
-  }
-
-  const token = request.cookies.get("session")?.value;
-  if (!token) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  const payload = await verifyToken(token);
-  if (!payload) {
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // Pass user info to downstream server components via headers
-  const headers = new Headers(request.headers);
-  headers.set("x-user-id", payload.userId);
-  headers.set("x-user-role", payload.role);
-
-  return NextResponse.next({ request: { headers } });
-}
-
-export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
-};
-```
-
 ## Error Boundary
 
 ```typescript
-// app/error.tsx
 "use client";
-
-import { useEffect } from "react";
 
 interface ErrorProps {
   error: Error & { digest?: string };
   reset: () => void;
 }
 
-export default function GlobalError({ error, reset }: ErrorProps) {
+export default function ErrorBoundary({ error, reset }: ErrorProps) {
   useEffect(() => {
-    console.error("Unhandled error:", error);
+    logger.error("page error", { error: error.message, digest: error.digest });
   }, [error]);
 
   return (
-    <div>
-      <h2>Something went wrong</h2>
-      <p>An unexpected error occurred. Please try again.</p>
-      <button onClick={reset}>Try again</button>
+    <div role="alert" className="rounded-lg border border-red-200 p-6">
+      <h2 className="text-lg font-semibold text-red-800">Something went wrong</h2>
+      <p className="mt-2 text-gray-600">Please try again or contact support.</p>
+      <button
+        type="button"
+        onClick={reset}
+        className="mt-4 rounded bg-red-600 px-4 py-2 text-white"
+      >
+        Try again
+      </button>
     </div>
   );
 }
 ```
 
+## Server Action
+
 ```typescript
-// app/users/[id]/not-found.tsx
+"use server";
 
-import Link from "next/link";
+import { tracer } from "@/lib/telemetry";
+import { revalidatePath } from "next/cache";
 
-export default function UserNotFound() {
-  return (
-    <div>
-      <h2>User not found</h2>
-      <p>The user you are looking for does not exist.</p>
-      <Link href="/users">Back to users</Link>
-    </div>
-  );
+export async function updateProduct(formData: FormData) {
+  return tracer.startActiveSpan("updateProduct", async (span) => {
+    try {
+      const id = formData.get("id") as string;
+      const name = formData.get("name") as string;
+      const price = Number(formData.get("price"));
+
+      const input = updateProductSchema.parse({ id, name, price });
+      await productService.update(input.id, { name: input.name, price: input.price });
+
+      revalidatePath(`/products/${id}`);
+    } catch (err) {
+      span.recordException(err instanceof Error ? err : new Error(String(err)));
+      throw err;
+    } finally {
+      span.end();
+    }
+  });
 }
 ```
 
-Trigger `notFound()` from the server component:
+## Client Component with Interactivity
 
 ```typescript
-// app/users/[id]/page.tsx
+"use client";
 
-import { notFound } from "next/navigation";
+interface ProductActionsProps {
+  productId: string;
+}
 
-async function UserPage({ params }: PageProps) {
-  const { id } = await params;
+function ProductActions({ productId }: ProductActionsProps) {
+  const [isPending, startTransition] = useTransition();
 
-  const user = await db.user.findUnique({ where: { id } });
-  if (!user) {
-    notFound();
+  function handleDelete() {
+    startTransition(async () => {
+      await deleteProduct(productId);
+    });
   }
 
-  return <UserProfile user={user} />;
+  return (
+    <div className="flex gap-2">
+      <Link href={`/products/${productId}/edit`} className="rounded border px-3 py-1">
+        Edit
+      </Link>
+      <button
+        type="button"
+        onClick={handleDelete}
+        disabled={isPending}
+        className="rounded bg-red-600 px-3 py-1 text-white disabled:opacity-50"
+      >
+        {isPending ? "Deleting..." : "Delete"}
+      </button>
+    </div>
+  );
+}
+```
+
+## List Page with Pagination
+
+```typescript
+interface PageProps {
+  searchParams: Promise<{ page?: string; q?: string }>;
+}
+
+export default async function ProductsPage({ searchParams }: PageProps) {
+  return tracer.startActiveSpan("ProductsPage", async (span) => {
+    try {
+      const { page: pageParam, q } = await searchParams;
+      const page = Math.max(1, Number(pageParam) || 1);
+      const { products, totalPages } = await productService.list({ page, query: q });
+
+      return (
+        <div>
+          <h1>Products</h1>
+          <SearchBar defaultValue={q} />
+          <ProductGrid products={products} />
+          <Pagination currentPage={page} totalPages={totalPages} />
+        </div>
+      );
+    } finally {
+      span.end();
+    }
+  });
 }
 ```

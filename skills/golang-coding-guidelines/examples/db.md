@@ -1,240 +1,197 @@
-# Database Patterns (database/sql + sqlx)
+# Database Patterns
 
-Idiomatic Go database patterns with connection pooling, transactions, batch queries, and inline OpenTelemetry instrumentation.
-
-## Connection pool configuration
+## Connection Pool Configuration
 
 ```go
-import (
-	"database/sql"
-	"fmt"
-	"time"
-
-	_ "github.com/jackc/pgx/v5/stdlib"
-)
-
 func NewDB(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("pgx", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("open database: %w", err)
-	}
+    db, err := sql.Open("postgres", dsn)
+    if err != nil {
+        return nil, fmt.Errorf("open db: %w", err)
+    }
 
-	db.SetConnMaxLifetime(5 * time.Minute)
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(10)
+    db.SetConnMaxLifetime(5 * time.Minute)
+    db.SetMaxOpenConns(25)
+    db.SetMaxIdleConns(10)
 
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("ping database: %w", err)
-	}
-	return db, nil
+    if err := db.PingContext(context.Background()); err != nil {
+        return nil, fmt.Errorf("ping db: %w", err)
+    }
+    return db, nil
 }
 ```
 
-## Repository with single-row query and OTel span
+## Repository with Interface
 
 ```go
-import (
-	"context"
-	"database/sql"
-	"errors"
-	"fmt"
-
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-)
-
-type UserRepository struct {
-	db *sql.DB
+type UserRepository interface {
+    GetByID(ctx context.Context, id int64) (*User, error)
+    Create(ctx context.Context, tx *sql.Tx, user *User) error
+    ListByIDs(ctx context.Context, ids []int64) ([]*User, error)
 }
 
-func NewUserRepository(db *sql.DB) *UserRepository {
-	return &UserRepository{db: db}
+type userRepository struct {
+    db     *sql.DB
+    tracer trace.Tracer
 }
 
-func (r *UserRepository) FindByID(ctx context.Context, id int64) (*User, error) {
-	ctx, span := otel.Tracer("user-repo").Start(ctx, "FindByID")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user.id", id))
-
-	var u User
-	err := r.db.QueryRowContext(ctx,
-		`SELECT id, name, email, role, created_at FROM users WHERE id = $1`, id,
-	).Scan(&u.ID, &u.Name, &u.Email, &u.Role, &u.CreatedAt)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("find user by ID %d: %w", id, ErrNotFound)
-		}
-		return nil, fmt.Errorf("find user by ID %d: %w", id, err)
-	}
-	return &u, nil
+func NewUserRepository(db *sql.DB) UserRepository {
+    return &userRepository{
+        db:     db,
+        tracer: otel.Tracer("db"),
+    }
 }
 ```
 
-## Batch query with IN clause
+## Query with Tracing
 
 ```go
-import (
-	"context"
-	"fmt"
+func (r *userRepository) GetByID(ctx context.Context, id int64) (*User, error) {
+    ctx, span := r.tracer.Start(ctx, "UserRepository.GetByID")
+    defer span.End()
 
-	"github.com/jmoiron/sqlx"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-)
-
-type UserRepositorySqlx struct {
-	db *sqlx.DB
-}
-
-func (r *UserRepositorySqlx) FindByIDs(ctx context.Context, ids []int64) ([]User, error) {
-	ctx, span := otel.Tracer("user-repo").Start(ctx, "FindByIDs")
-	defer span.End()
-	span.SetAttributes(attribute.Int("user.count", len(ids)))
-
-	if len(ids) == 0 {
-		return nil, nil
-	}
-
-	query, args, err := sqlx.In(`SELECT id, name, email, role, created_at FROM users WHERE id IN (?)`, ids)
-	if err != nil {
-		return nil, fmt.Errorf("build IN query: %w", err)
-	}
-	query = r.db.Rebind(query)
-
-	var users []User
-	if err := r.db.SelectContext(ctx, &users, query, args...); err != nil {
-		return nil, fmt.Errorf("find users by IDs: %w", err)
-	}
-	return users, nil
+    var user User
+    err := r.db.QueryRowContext(ctx,
+        `SELECT id, name, email, created_at FROM users WHERE id = $1`, id,
+    ).Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt)
+    if errors.Is(err, sql.ErrNoRows) {
+        return nil, fmt.Errorf("get user by ID %d: %w", id, ErrNotFound)
+    }
+    if err != nil {
+        return nil, fmt.Errorf("get user by ID %d: %w", id, err)
+    }
+    return &user, nil
 }
 ```
 
-## One transaction per request for multi-table writes
+## Batch Query with sqlx.In
 
 ```go
-import (
-	"context"
-	"fmt"
-	"time"
+func (r *userRepository) ListByIDs(ctx context.Context, ids []int64) ([]*User, error) {
+    ctx, span := r.tracer.Start(ctx, "UserRepository.ListByIDs")
+    defer span.End()
 
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-)
+    if len(ids) == 0 {
+        return nil, nil
+    }
 
+    query, args, err := sqlx.In(
+        `SELECT id, name, email, created_at FROM users WHERE id IN (?)`, ids,
+    )
+    if err != nil {
+        return nil, fmt.Errorf("build IN query for %d users: %w", len(ids), err)
+    }
+    query = r.db.Rebind(query)
+
+    var users []*User
+    if err := r.db.SelectContext(ctx, &users, query, args...); err != nil {
+        return nil, fmt.Errorf("list users by IDs: %w", err)
+    }
+    return users, nil
+}
+```
+
+## Transaction — One Per Request
+
+```go
 func (s *OrderService) PlaceOrder(ctx context.Context, order Order) error {
-	ctx, span := otel.Tracer("order").Start(ctx, "PlaceOrder")
-	defer span.End()
-	span.SetAttributes(
-		attribute.Int64("order.id", order.ID),
-		attribute.Int("order.item_count", len(order.Items)),
-	)
+    ctx, span := otel.Tracer("order").Start(ctx, "PlaceOrder")
+    defer span.End()
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback()
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return fmt.Errorf("begin tx: %w", err)
+    }
+    defer tx.Rollback()
 
-	now := time.Now()
-	if err := s.createOrder(ctx, tx, order, now); err != nil {
-		return fmt.Errorf("create order %d: %w", order.ID, err)
-	}
-	if err := s.createOrderItems(ctx, tx, order.ID, order.Items); err != nil {
-		return fmt.Errorf("create order items for order %d: %w", order.ID, err)
-	}
-	if err := s.updateInventory(ctx, tx, order.Items); err != nil {
-		return fmt.Errorf("update inventory for order %d: %w", order.ID, err)
-	}
+    if err := s.orderRepo.Create(ctx, tx, &order); err != nil {
+        return fmt.Errorf("create order: %w", err)
+    }
+    if err := s.inventoryRepo.DeductStock(ctx, tx, order.Items); err != nil {
+        return fmt.Errorf("deduct stock: %w", err)
+    }
 
-	if err := tx.Commit(); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return fmt.Errorf("commit order %d: %w", order.ID, err)
-	}
-	return nil
+    if err := tx.Commit(); err != nil {
+        return fmt.Errorf("commit order tx: %w", err)
+    }
+    return nil
 }
 ```
 
-## Insert with application-generated timestamps
+## Insert within Transaction
 
 ```go
-func (r *UserRepository) Create(ctx context.Context, u *User, now time.Time) error {
-	ctx, span := otel.Tracer("user-repo").Start(ctx, "Create")
-	defer span.End()
+func (r *orderRepository) Create(ctx context.Context, tx *sql.Tx, order *Order) error {
+    ctx, span := r.tracer.Start(ctx, "OrderRepository.Create")
+    defer span.End()
 
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO users (name, email, role, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5)`,
-		u.Name, u.Email, u.Role, now, now,
-	)
-	if err != nil {
-		return fmt.Errorf("insert user %q: %w", u.Email, err)
-	}
-	return nil
+    err := tx.QueryRowContext(ctx,
+        `INSERT INTO orders (user_id, total, status, created_at)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        order.UserID, order.Total, order.Status, order.CreatedAt,
+    ).Scan(&order.ID)
+    if err != nil {
+        return fmt.Errorf("insert order for user %d: %w", order.UserID, err)
+    }
+    return nil
 }
 ```
 
-## Batch insert with sqlx
+## Batch Insert
 
 ```go
-func (r *OrderItemRepository) CreateBatch(ctx context.Context, tx *sql.Tx, items []OrderItem) error {
-	ctx, span := otel.Tracer("order-item-repo").Start(ctx, "CreateBatch")
-	defer span.End()
-	span.SetAttributes(attribute.Int("item.count", len(items)))
+func (r *orderRepository) CreateItems(ctx context.Context, tx *sql.Tx, orderID int64, items []OrderItem) error {
+    ctx, span := r.tracer.Start(ctx, "OrderRepository.CreateItems")
+    defer span.End()
 
-	if len(items) == 0 {
-		return nil
-	}
+    if len(items) == 0 {
+        return nil
+    }
 
-	stmt, err := tx.PrepareContext(ctx,
-		`INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES ($1, $2, $3, $4)`,
-	)
-	if err != nil {
-		return fmt.Errorf("prepare insert: %w", err)
-	}
-	defer stmt.Close()
+    valueStrings := make([]string, 0, len(items))
+    valueArgs := make([]any, 0, len(items)*4)
+    for i, item := range items {
+        base := i * 4
+        valueStrings = append(valueStrings,
+            fmt.Sprintf("($%d, $%d, $%d, $%d)", base+1, base+2, base+3, base+4),
+        )
+        valueArgs = append(valueArgs, orderID, item.ProductID, item.Quantity, item.Price)
+    }
 
-	for _, item := range items {
-		if _, err := stmt.ExecContext(ctx, item.OrderID, item.ProductID, item.Quantity, item.UnitPrice); err != nil {
-			return fmt.Errorf("insert item for order %d, product %s: %w", item.OrderID, item.ProductID, err)
-		}
-	}
-	return nil
+    query := fmt.Sprintf(
+        `INSERT INTO order_items (order_id, product_id, quantity, price) VALUES %s`,
+        strings.Join(valueStrings, ", "),
+    )
+
+    if _, err := tx.ExecContext(ctx, query, valueArgs...); err != nil {
+        return fmt.Errorf("insert %d items for order %d: %w", len(items), orderID, err)
+    }
+    return nil
 }
 ```
 
-## Testing with testcontainers
+## Testing with testcontainers-go
 
 ```go
-import (
-	"context"
-	"database/sql"
-	"testing"
+func setupTestDB(t *testing.T) *sql.DB {
+    t.Helper()
 
-	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-)
+    ctx := context.Background()
+    container, err := postgres.Run(ctx, "postgres:16-alpine",
+        postgres.WithDatabase("testdb"),
+        testcontainers.WithWaitStrategy(
+            wait.ForListeningPort("5432/tcp").WithStartupTimeout(30*time.Second),
+        ),
+    )
+    require.NoError(t, err)
+    t.Cleanup(func() { container.Terminate(ctx) })
 
-func newTestDB(t *testing.T) *sql.DB {
-	t.Helper()
-	ctx := context.Background()
+    dsn, err := container.ConnectionString(ctx, "sslmode=disable")
+    require.NoError(t, err)
 
-	container, err := postgres.Run(ctx, "postgres:16-alpine",
-		postgres.WithDatabase("testdb"),
-		postgres.WithUsername("test"),
-		postgres.WithPassword("test"),
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() { container.Terminate(ctx) })
+    db, err := sql.Open("postgres", dsn)
+    require.NoError(t, err)
+    t.Cleanup(func() { db.Close() })
 
-	dsn, err := container.ConnectionString(ctx, "sslmode=disable")
-	require.NoError(t, err)
-
-	db, err := sql.Open("pgx", dsn)
-	require.NoError(t, err)
-	t.Cleanup(func() { db.Close() })
-
-	return db
+    return db
 }
 ```

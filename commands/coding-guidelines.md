@@ -182,12 +182,40 @@ Accept the minimum type or interface a function needs. This reduces coupling and
 
 - **Tests must be deterministic** — no flaky tests; aim for at least 95% branch coverage
 - **Inject dependencies** — pass dependencies via constructors or method parameters to enable mocking and control. Inject time values or time-generating functions instead of using sleep or reading system time directly
+- **Extract interfaces for external dependencies** — define interfaces for databases, APIs, and other external services to enable mock implementations in tests
 - **Clean up global state before each test** — reset database records, use temporary files/directories that auto-delete, initialize mock servers fresh
 - **Use table-driven tests** — group related cases, separate success from error cases
 - **Prefer real implementations over mocks** — use real databases via containers; mock only 3rd party APIs and external services that cannot run locally
-- **Share test setup** — use factory functions with sensible defaults for test data; use shared initialization objects that hold DB clients, mock servers, and test infrastructure across test cases
+- **Share test setup** — use factory functions with sensible defaults for test data (test data builders); use shared initialization objects that hold DB clients, mock servers, and test infrastructure across test cases
 - **Never skip or ignore test failures** — fix them properly
 - **Load test data from files** — do not embed base64 or encoded strings for test data like images or certificates; generate files and read them from test code
+
+#### What to Test
+
+- All public functions
+- Error handling paths
+- Edge cases (empty, null, zero, max values)
+- Boundary conditions
+
+#### What NOT to Test
+
+- Third-party library internals
+- Simple getters/setters with no logic
+- Framework internals
+
+#### Coverage Gaps to Look For
+
+- Untested error branches
+- Missing edge cases
+- Conditional logic not fully covered
+
+#### Writing Testable Code
+
+When adding tests to existing code, follow this order:
+1. **Analyze testability** — identify dependencies, global state, and coupling that prevent testing
+2. **Refactor first** — extract interfaces, inject dependencies, split large functions before writing tests
+3. **Write tests** — use table-driven patterns, cover success/error/edge cases
+4. **Verify coverage** — ensure coverage is maintained or increased
 
 ### Concurrency
 

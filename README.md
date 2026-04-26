@@ -44,7 +44,6 @@ Reusable guidance for specific tasks:
 
 | Skill | Purpose |
 |-------|---------|
-| `write-tests` | Testing patterns for Go and TypeScript |
 | `troubleshoot` | General diagnostic principles |
 | `github-actions-troubleshoot` | Fix GitHub Actions CI errors |
 | `kubernetes-troubleshoot` | Diagnose K8s pod failures, ArgoCD sync issues |

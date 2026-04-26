@@ -1,204 +1,187 @@
 # HTTP Client Patterns
 
-Idiomatic Go HTTP client with context propagation, retries, and inline OpenTelemetry instrumentation.
-
-## Client struct with connection pooling
+## Client with Functional Options
 
 ```go
-import (
-	"net"
-	"net/http"
-	"time"
-
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-)
-
-type VendorClient struct {
-	baseURL    string
-	httpClient *http.Client
+type Client struct {
+    baseURL    string
+    httpClient *http.Client
+    tracer     trace.Tracer
 }
 
-func NewVendorClient(baseURL string, opts ...Option) *VendorClient {
-	o := options{timeout: 10 * time.Second}
-	for _, opt := range opts {
-		opt(&o)
-	}
+type Option func(*clientConfig)
 
-	transport := &http.Transport{
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: 10,
-		IdleConnTimeout:     90 * time.Second,
-		DialContext: (&net.Dialer{
-			Timeout:   5 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-	}
+type clientConfig struct {
+    timeout    time.Duration
+    transport  http.RoundTripper
+    maxRetries int
+}
 
-	return &VendorClient{
-		baseURL: baseURL,
-		httpClient: &http.Client{
-			Timeout:   o.timeout,
-			Transport: otelhttp.NewTransport(transport),
-		},
-	}
+func WithTimeout(d time.Duration) Option {
+    return func(c *clientConfig) { c.timeout = d }
+}
+
+func WithMaxRetries(n int) Option {
+    return func(c *clientConfig) { c.maxRetries = n }
+}
+
+func NewClient(baseURL string, opts ...Option) *Client {
+    cfg := clientConfig{
+        timeout:    30 * time.Second,
+        maxRetries: 3,
+    }
+    for _, opt := range opts {
+        opt(&cfg)
+    }
+
+    return &Client{
+        baseURL: baseURL,
+        httpClient: &http.Client{
+            Timeout:   cfg.timeout,
+            Transport: cfg.transport,
+        },
+        tracer: otel.Tracer("client"),
+    }
 }
 ```
 
-## GET request with typed response and OTel span
+## Request with Tracing and Error Handling
 
 ```go
-import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
+func (c *Client) GetProduct(ctx context.Context, id string) (*Product, error) {
+    ctx, span := c.tracer.Start(ctx, "GetProduct")
+    defer span.End()
 
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-)
+    req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/products/"+id, nil)
+    if err != nil {
+        return nil, fmt.Errorf("new request for product %s: %w", id, err)
+    }
 
-type Product struct {
-	ID    string  `json:"id"`
-	Name  string  `json:"name"`
-	Price float64 `json:"price"`
-}
+    resp, err := c.httpClient.Do(req)
+    if err != nil {
+        span.RecordError(err)
+        return nil, fmt.Errorf("GET product %s: %w", id, err)
+    }
+    defer resp.Body.Close()
 
-func (c *VendorClient) GetProduct(ctx context.Context, id string) (*Product, error) {
-	ctx, span := otel.Tracer("vendor").Start(ctx, "GetProduct")
-	defer span.End()
-	span.SetAttributes(attribute.String("product.id", id))
+    if resp.StatusCode != http.StatusOK {
+        body, _ := io.ReadAll(resp.Body)
+        return nil, fmt.Errorf("GET product %s: status %d, body: %s", id, resp.StatusCode, body)
+    }
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/products/"+id, nil)
-	if err != nil {
-		return nil, fmt.Errorf("new request for product %s: %w", id, err)
-	}
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, fmt.Errorf("GET product %s: %w", id, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GET product %s: status %d", id, resp.StatusCode)
-	}
-
-	var product Product
-	if err := json.NewDecoder(resp.Body).Decode(&product); err != nil {
-		return nil, fmt.Errorf("decode product %s: %w", id, err)
-	}
-	return &product, nil
+    var product Product
+    if err := json.NewDecoder(resp.Body).Decode(&product); err != nil {
+        return nil, fmt.Errorf("decode product %s: %w", id, err)
+    }
+    return &product, nil
 }
 ```
 
-## POST request with JSON body
+## POST with Request Body
 
 ```go
-import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
+func (c *Client) CreateOrder(ctx context.Context, order CreateOrderRequest) (*Order, error) {
+    ctx, span := c.tracer.Start(ctx, "CreateOrder")
+    defer span.End()
 
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
-)
+    body, err := json.Marshal(order)
+    if err != nil {
+        return nil, fmt.Errorf("marshal order: %w", err)
+    }
 
-type CreateOrderRequest struct {
-	CustomerID string      `json:"customer_id"`
-	Items      []OrderItem `json:"items"`
-}
+    req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/orders", bytes.NewReader(body))
+    if err != nil {
+        return nil, fmt.Errorf("new request: %w", err)
+    }
+    req.Header.Set("Content-Type", "application/json")
 
-type CreateOrderResponse struct {
-	OrderID string `json:"order_id"`
-}
+    resp, err := c.httpClient.Do(req)
+    if err != nil {
+        span.RecordError(err)
+        return nil, fmt.Errorf("POST order: %w", err)
+    }
+    defer resp.Body.Close()
 
-func (c *VendorClient) CreateOrder(ctx context.Context, order CreateOrderRequest) (*CreateOrderResponse, error) {
-	ctx, span := otel.Tracer("vendor").Start(ctx, "CreateOrder")
-	defer span.End()
+    if resp.StatusCode != http.StatusCreated {
+        body, _ := io.ReadAll(resp.Body)
+        return nil, fmt.Errorf("POST order: status %d, body: %s", resp.StatusCode, body)
+    }
 
-	body, err := json.Marshal(order)
-	if err != nil {
-		return nil, fmt.Errorf("marshal order: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/orders", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("new request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, fmt.Errorf("POST order: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("POST order: status %d", resp.StatusCode)
-	}
-
-	var result CreateOrderResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode order response: %w", err)
-	}
-	return &result, nil
+    var result Order
+    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+        return nil, fmt.Errorf("decode order response: %w", err)
+    }
+    return &result, nil
 }
 ```
 
-## Retry with exponential backoff
+## Retry with Exponential Backoff
 
 ```go
-import (
-	"context"
-	"math"
-	"net/http"
-	"time"
-)
-
-type RetryConfig struct {
-	MaxAttempts int
-	BaseDelay   time.Duration
-	MaxDelay    time.Duration
+func (c *Client) doWithRetry(ctx context.Context, req *http.Request) (*http.Response, error) {
+    var lastErr error
+    for attempt := range c.maxRetries {
+        resp, err := c.httpClient.Do(req)
+        if err != nil {
+            lastErr = err
+            if !isRetryable(err) {
+                return nil, err
+            }
+            backoff(ctx, attempt)
+            continue
+        }
+        if !isRetryableStatus(resp.StatusCode) {
+            return resp, nil
+        }
+        resp.Body.Close()
+        lastErr = fmt.Errorf("status %d", resp.StatusCode)
+        backoff(ctx, attempt)
+    }
+    return nil, fmt.Errorf("max retries exceeded: %w", lastErr)
 }
 
-func (c *VendorClient) doWithRetry(ctx context.Context, req *http.Request, cfg RetryConfig) (*http.Response, error) {
-	var lastErr error
-	for attempt := range cfg.MaxAttempts {
-		resp, err := c.httpClient.Do(req)
-		if err == nil && resp.StatusCode < 500 && resp.StatusCode != http.StatusTooManyRequests {
-			return resp, nil
-		}
+func isRetryableStatus(code int) bool {
+    return code == http.StatusTooManyRequests ||
+        code == http.StatusBadGateway ||
+        code == http.StatusServiceUnavailable ||
+        code == http.StatusGatewayTimeout
+}
 
-		if err != nil {
-			lastErr = err
-		} else {
-			resp.Body.Close()
-			lastErr = fmt.Errorf("status %d", resp.StatusCode)
-		}
+func backoff(ctx context.Context, attempt int) {
+    delay := time.Duration(1<<attempt) * 100 * time.Millisecond
+    timer := time.NewTimer(delay)
+    defer timer.Stop()
+    select {
+    case <-timer.C:
+    case <-ctx.Done():
+    }
+}
+```
 
-		if attempt == cfg.MaxAttempts-1 {
-			break
-		}
+## Concurrent Fan-Out Requests
 
-		delay := time.Duration(float64(cfg.BaseDelay) * math.Pow(2, float64(attempt)))
-		if delay > cfg.MaxDelay {
-			delay = cfg.MaxDelay
-		}
+```go
+func (c *Client) GetProducts(ctx context.Context, ids []string) ([]*Product, error) {
+    ctx, span := c.tracer.Start(ctx, "GetProducts")
+    defer span.End()
 
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(delay):
-		}
-	}
-	return nil, fmt.Errorf("all %d attempts failed: %w", cfg.MaxAttempts, lastErr)
+    products := make([]*Product, len(ids))
+    eg, ctx := errgroup.WithContext(ctx)
+
+    for i, id := range ids {
+        eg.Go(func() error {
+            product, err := c.GetProduct(ctx, id)
+            if err != nil {
+                return fmt.Errorf("get product %s: %w", id, err)
+            }
+            products[i] = product
+            return nil
+        })
+    }
+
+    if err := eg.Wait(); err != nil {
+        return nil, err
+    }
+    return products, nil
 }
 ```

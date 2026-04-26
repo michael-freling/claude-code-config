@@ -71,7 +71,7 @@ Once approved, implement the changes:
 2. Make structural changes
 3. Verify tests still pass after changes
 
-Use appropriate skills (e.g., `/write-tests`).
+Follow testing guidelines from the coding guidelines skill.
 
 ### Phase 5: Verify
 

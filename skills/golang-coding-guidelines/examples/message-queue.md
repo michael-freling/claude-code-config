@@ -1,196 +1,212 @@
-# Message Queue Patterns
+# Message Queue Worker Patterns
 
-Idiomatic Go message queue consumer and producer using NATS JetStream with inline OpenTelemetry instrumentation. Patterns apply to any message broker (Kafka, RabbitMQ, SQS).
-
-## Consumer with graceful shutdown
+## Consumer with Graceful Shutdown
 
 ```go
-import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"log/slog"
-	"time"
-
-	"github.com/nats-io/nats.go"
-	"github.com/nats-io/nats.go/jetstream"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-)
-
-type OrderConsumer struct {
-	consumer jetstream.Consumer
-	handler  OrderHandler
-	logger   *slog.Logger
+type Worker struct {
+    consumer MessageConsumer
+    handler  MessageHandler
+    logger   *slog.Logger
+    tracer   trace.Tracer
 }
 
-type OrderHandler interface {
-	ProcessOrder(ctx context.Context, order Order) error
+type MessageConsumer interface {
+    Receive(ctx context.Context) (Message, error)
+    Ack(ctx context.Context, msg Message) error
+    Nack(ctx context.Context, msg Message) error
 }
 
-func NewOrderConsumer(js jetstream.JetStream, handler OrderHandler, logger *slog.Logger) (*OrderConsumer, error) {
-	consumer, err := js.CreateOrUpdateConsumer(context.Background(), "ORDERS", jetstream.ConsumerConfig{
-		Durable:       "order-processor",
-		FilterSubject: "orders.created",
-		AckWait:       30 * time.Second,
-		MaxDeliver:    5,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create consumer: %w", err)
-	}
-
-	return &OrderConsumer{
-		consumer: consumer,
-		handler:  handler,
-		logger:   logger,
-	}, nil
+type MessageHandler interface {
+    Handle(ctx context.Context, msg Message) error
 }
 
-func (c *OrderConsumer) Run(ctx context.Context) error {
-	for {
-		msg, err := c.consumer.Next(jetstream.FetchMaxWait(5 * time.Second))
-		if err != nil {
-			if ctx.Err() != nil {
-				return nil
-			}
-			c.logger.WarnContext(ctx, "fetch message", "error", err)
-			continue
-		}
-
-		if err := c.processMessage(ctx, msg); err != nil {
-			c.logger.ErrorContext(ctx, "process message",
-				"subject", msg.Subject(),
-				"error", err,
-			)
-			msg.Nak()
-			continue
-		}
-		msg.Ack()
-	}
+func NewWorker(consumer MessageConsumer, handler MessageHandler, logger *slog.Logger) *Worker {
+    return &Worker{
+        consumer: consumer,
+        handler:  handler,
+        logger:   logger,
+        tracer:   otel.Tracer("worker"),
+    }
 }
 ```
 
-## Message processing with OTel span
+## Consumer Loop with Tracing
 
 ```go
-func (c *OrderConsumer) processMessage(ctx context.Context, msg jetstream.Msg) error {
-	ctx, span := otel.Tracer("consumer").Start(ctx, "ProcessOrderMessage")
-	defer span.End()
-	span.SetAttributes(attribute.String("subject", msg.Subject()))
+func (w *Worker) Run(ctx context.Context) error {
+    w.logger.InfoContext(ctx, "worker started")
 
-	var order Order
-	if err := json.Unmarshal(msg.Data(), &order); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "unmarshal failed")
-		return fmt.Errorf("unmarshal order message: %w", err)
-	}
+    for {
+        select {
+        case <-ctx.Done():
+            w.logger.InfoContext(ctx, "worker shutting down")
+            return nil
+        default:
+        }
 
-	span.SetAttributes(attribute.Int64("order.id", order.ID))
+        msg, err := w.consumer.Receive(ctx)
+        if err != nil {
+            if ctx.Err() != nil {
+                return nil
+            }
+            w.logger.ErrorContext(ctx, "receive message", "error", err)
+            continue
+        }
 
-	if err := c.handler.ProcessOrder(ctx, order); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return fmt.Errorf("process order %d: %w", order.ID, err)
-	}
+        if err := w.processMessage(ctx, msg); err != nil {
+            w.logger.ErrorContext(ctx, "process message",
+                "message_id", msg.ID,
+                "error", err,
+            )
+        }
+    }
+}
 
-	c.logger.InfoContext(ctx, "order processed",
-		"order_id", order.ID,
-		"item_count", len(order.Items),
-	)
-	return nil
+func (w *Worker) processMessage(ctx context.Context, msg Message) error {
+    ctx, span := w.tracer.Start(ctx, "ProcessMessage",
+        trace.WithAttributes(attribute.String("message.id", msg.ID)),
+    )
+    defer span.End()
+
+    if err := w.handler.Handle(ctx, msg); err != nil {
+        span.RecordError(err)
+        if nackErr := w.consumer.Nack(ctx, msg); nackErr != nil {
+            w.logger.ErrorContext(ctx, "nack message", "message_id", msg.ID, "error", nackErr)
+        }
+        return fmt.Errorf("handle message %s: %w", msg.ID, err)
+    }
+
+    if err := w.consumer.Ack(ctx, msg); err != nil {
+        span.RecordError(err)
+        return fmt.Errorf("ack message %s: %w", msg.ID, err)
+    }
+    return nil
 }
 ```
 
-## Producer with publish confirmation
+## Concurrent Worker Pool
 
 ```go
-type OrderPublisher struct {
-	js     jetstream.JetStream
-	logger *slog.Logger
-}
+func (w *Worker) RunPool(ctx context.Context, concurrency int) error {
+    eg, ctx := errgroup.WithContext(ctx)
 
-func NewOrderPublisher(js jetstream.JetStream, logger *slog.Logger) *OrderPublisher {
-	return &OrderPublisher{js: js, logger: logger}
-}
+    for range concurrency {
+        eg.Go(func() error {
+            return w.Run(ctx)
+        })
+    }
 
-func (p *OrderPublisher) PublishOrderCreated(ctx context.Context, order Order) error {
-	ctx, span := otel.Tracer("publisher").Start(ctx, "PublishOrderCreated")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("order.id", order.ID))
-
-	data, err := json.Marshal(order)
-	if err != nil {
-		return fmt.Errorf("marshal order %d: %w", order.ID, err)
-	}
-
-	ack, err := p.js.Publish(ctx, "orders.created", data)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return fmt.Errorf("publish order %d: %w", order.ID, err)
-	}
-
-	p.logger.InfoContext(ctx, "order published",
-		"order_id", order.ID,
-		"stream", ack.Stream,
-		"sequence", ack.Sequence,
-	)
-	return nil
+    return eg.Wait()
 }
 ```
 
-## Batch publish
+## Batch Consumer
 
 ```go
-func (p *OrderPublisher) PublishBatch(ctx context.Context, orders []Order) error {
-	ctx, span := otel.Tracer("publisher").Start(ctx, "PublishBatch")
-	defer span.End()
-	span.SetAttributes(attribute.Int("batch.size", len(orders)))
+func (w *BatchWorker) Run(ctx context.Context) error {
+    batch := make([]Message, 0, w.batchSize)
+    ticker := time.NewTicker(w.flushInterval)
+    defer ticker.Stop()
 
-	for _, order := range orders {
-		if err := p.PublishOrderCreated(ctx, order); err != nil {
-			return err
-		}
-	}
-	return nil
+    for {
+        select {
+        case <-ctx.Done():
+            if len(batch) > 0 {
+                w.flush(context.Background(), batch)
+            }
+            return nil
+
+        case <-ticker.C:
+            if len(batch) > 0 {
+                w.flush(ctx, batch)
+                batch = batch[:0]
+            }
+
+        default:
+            msg, err := w.consumer.Receive(ctx)
+            if err != nil {
+                if ctx.Err() != nil {
+                    return nil
+                }
+                continue
+            }
+            batch = append(batch, msg)
+            if len(batch) >= w.batchSize {
+                w.flush(ctx, batch)
+                batch = batch[:0]
+            }
+        }
+    }
+}
+
+func (w *BatchWorker) flush(ctx context.Context, batch []Message) {
+    ctx, span := w.tracer.Start(ctx, "FlushBatch",
+        trace.WithAttributes(attribute.Int("batch.size", len(batch))),
+    )
+    defer span.End()
+
+    if err := w.handler.HandleBatch(ctx, batch); err != nil {
+        span.RecordError(err)
+        w.logger.ErrorContext(ctx, "flush batch", "size", len(batch), "error", err)
+        for _, msg := range batch {
+            w.consumer.Nack(ctx, msg)
+        }
+        return
+    }
+
+    for _, msg := range batch {
+        w.consumer.Ack(ctx, msg)
+    }
 }
 ```
 
-## Worker main with graceful shutdown
+## Testing with Mock Consumer
 
 ```go
-import (
-	"context"
-	"log/slog"
-	"os/signal"
-	"syscall"
+func TestWorker_ProcessMessage(t *testing.T) {
+    ctrl := gomock.NewController(t)
 
-	"github.com/nats-io/nats.go"
-	"github.com/nats-io/nats.go/jetstream"
-)
+    consumer := NewMockMessageConsumer(ctrl)
+    handler := NewMockMessageHandler(ctrl)
+    logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-func runWorker() error {
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
+    worker := NewWorker(consumer, handler, logger)
 
-	nc, err := nats.Connect(cfg.NatsURL)
-	if err != nil {
-		return fmt.Errorf("connect nats: %w", err)
-	}
-	defer nc.Drain()
+    tests := []struct {
+        name    string
+        msg     Message
+        setup   func()
+        wantErr bool
+    }{
+        {
+            name: "success",
+            msg:  Message{ID: "msg-1", Body: []byte(`{"action":"create"}`)},
+            setup: func() {
+                handler.EXPECT().Handle(gomock.Any(), gomock.Any()).Return(nil)
+                consumer.EXPECT().Ack(gomock.Any(), gomock.Any()).Return(nil)
+            },
+        },
+        {
+            name: "handler error nacks message",
+            msg:  Message{ID: "msg-2", Body: []byte(`{"action":"invalid"}`)},
+            setup: func() {
+                handler.EXPECT().Handle(gomock.Any(), gomock.Any()).Return(errors.New("invalid action"))
+                consumer.EXPECT().Nack(gomock.Any(), gomock.Any()).Return(nil)
+            },
+            wantErr: true,
+        },
+    }
 
-	js, err := jetstream.New(nc)
-	if err != nil {
-		return fmt.Errorf("create jetstream: %w", err)
-	}
-
-	consumer, err := NewOrderConsumer(js, orderHandler, slog.Default())
-	if err != nil {
-		return fmt.Errorf("create consumer: %w", err)
-	}
-
-	slog.Info("worker starting")
-	return consumer.Run(ctx)
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            tt.setup()
+            err := worker.processMessage(context.Background(), tt.msg)
+            if tt.wantErr {
+                require.Error(t, err)
+            } else {
+                require.NoError(t, err)
+            }
+        })
+    }
 }
 ```

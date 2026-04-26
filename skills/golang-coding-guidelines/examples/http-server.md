@@ -1,196 +1,132 @@
 # HTTP Server Patterns
 
-Idiomatic Go HTTP handlers using `net/http` and `chi` router with inline OpenTelemetry instrumentation.
-
-## Router setup with middleware
+## Handler with Dependency Injection
 
 ```go
-import (
-	"net/http"
+type UserHandler struct {
+    userService UserService
+    logger      *slog.Logger
+}
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-)
-
-func (h *Handler) Routes() http.Handler {
-	r := chi.NewRouter()
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Recoverer)
-
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Route("/users", func(r chi.Router) {
-			r.Post("/", h.CreateUser)
-			r.Get("/{userID}", h.GetUser)
-			r.Put("/{userID}", h.UpdateUser)
-		})
-	})
-
-	return otelhttp.NewHandler(r, "api")
+func NewUserHandler(userService UserService, logger *slog.Logger) *UserHandler {
+    return &UserHandler{
+        userService: userService,
+        logger:      logger,
+    }
 }
 ```
 
-## Handler with request validation, OTel span, and error responses
+## Request Handling with Tracing
 
 ```go
-import (
-	"encoding/json"
-	"errors"
-	"log/slog"
-	"net/http"
-	"strconv"
+func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+    ctx, span := otel.Tracer("handler").Start(r.Context(), "CreateUser")
+    defer span.End()
 
-	"github.com/go-chi/chi/v5"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-)
+    var req CreateUserRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "invalid request body", http.StatusBadRequest)
+        return
+    }
+    if err := req.Validate(); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
 
-func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	ctx, span := otel.Tracer("handler").Start(r.Context(), "CreateUser")
-	defer span.End()
+    user, err := h.userService.Create(ctx, req)
+    if err != nil {
+        span.RecordError(err)
+        h.logger.ErrorContext(ctx, "create user", "error", err)
+        http.Error(w, "internal server error", http.StatusInternalServerError)
+        return
+    }
 
-	var req CreateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-	if err := req.Validate(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	span.SetAttributes(attribute.String("user.email", req.Email))
-
-	user, err := h.userService.Create(ctx, req)
-	if err != nil {
-		var validationErr *ValidationError
-		if errors.As(err, &validationErr) {
-			http.Error(w, validationErr.Error(), http.StatusBadRequest)
-			return
-		}
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		slog.ErrorContext(ctx, "create user", "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusCreated)
+    json.NewEncoder(w).Encode(user)
 }
 ```
 
-## GET handler with path parameter parsing
+## Middleware with OpenTelemetry Metrics
 
 ```go
-func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
-	ctx, span := otel.Tracer("handler").Start(r.Context(), "GetUser")
-	defer span.End()
+func MetricsMiddleware(meter metric.Meter) func(http.Handler) http.Handler {
+    requestCount, _ := meter.Int64Counter("http.server.request.count")
+    requestDuration, _ := meter.Float64Histogram("http.server.request.duration",
+        metric.WithUnit("ms"),
+    )
 
-	userID, err := strconv.ParseInt(chi.URLParam(r, "userID"), 10, 64)
-	if err != nil {
-		http.Error(w, "invalid user ID", http.StatusBadRequest)
-		return
-	}
-	span.SetAttributes(attribute.Int64("user.id", userID))
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            start := time.Now()
+            rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 
-	user, err := h.userService.FindByID(ctx, userID)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			http.Error(w, "user not found", http.StatusNotFound)
-			return
-		}
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		slog.ErrorContext(ctx, "find user", "user_id", userID, "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
+            next.ServeHTTP(rw, r)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+            attrs := metric.WithAttributes(
+                attribute.String("method", r.Method),
+                attribute.String("path", r.Pattern),
+                attribute.Int("status", rw.statusCode),
+            )
+            requestCount.Add(r.Context(), 1, attrs)
+            requestDuration.Record(r.Context(), float64(time.Since(start).Milliseconds()), attrs)
+        })
+    }
+}
+
+type responseWriter struct {
+    http.ResponseWriter
+    statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+    rw.statusCode = code
+    rw.ResponseWriter.WriteHeader(code)
 }
 ```
 
-## JSON response helper
+## Router Setup
 
 ```go
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
-}
+func NewRouter(userHandler *UserHandler, orderHandler *OrderHandler, meter metric.Meter) http.Handler {
+    mux := http.NewServeMux()
 
-func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{"error": message})
+    mux.HandleFunc("POST /users", userHandler.CreateUser)
+    mux.HandleFunc("GET /users/{id}", userHandler.GetUser)
+    mux.HandleFunc("POST /orders", orderHandler.CreateOrder)
+
+    var handler http.Handler = mux
+    handler = MetricsMiddleware(meter)(handler)
+
+    return handler
 }
 ```
 
-## Request validation struct
+## Graceful Shutdown
 
 ```go
-type CreateUserRequest struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
-	Role  Role   `json:"role"`
-}
+func Run(ctx context.Context, handler http.Handler, addr string) error {
+    server := &http.Server{
+        Addr:              addr,
+        Handler:           handler,
+        ReadHeaderTimeout: 10 * time.Second,
+    }
 
-func (r *CreateUserRequest) Validate() error {
-	if r.Name == "" {
-		return &ValidationError{Field: "name", Message: "is required"}
-	}
-	if r.Email == "" {
-		return &ValidationError{Field: "email", Message: "is required"}
-	}
-	if !r.Role.IsValid() {
-		return &ValidationError{Field: "role", Message: "must be admin, user, or viewer"}
-	}
-	return nil
-}
-```
+    errCh := make(chan error, 1)
+    go func() {
+        errCh <- server.ListenAndServe()
+    }()
 
-## Graceful shutdown
-
-```go
-import (
-	"context"
-	"log"
-	"log/slog"
-	"net/http"
-	"os/signal"
-	"syscall"
-	"time"
-)
-
-func run() error {
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	srv := &http.Server{
-		Addr:         ":8080",
-		Handler:      handler.Routes(),
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
-	errCh := make(chan error, 1)
-	go func() {
-		slog.Info("server starting", "addr", srv.Addr)
-		errCh <- srv.ListenAndServe()
-	}()
-
-	select {
-	case err := <-errCh:
-		return fmt.Errorf("server error: %w", err)
-	case <-ctx.Done():
-		slog.Info("shutting down")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		return srv.Shutdown(shutdownCtx)
-	}
+    select {
+    case err := <-errCh:
+        return fmt.Errorf("server listen: %w", err)
+    case <-ctx.Done():
+        shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+        defer cancel()
+        if err := server.Shutdown(shutdownCtx); err != nil {
+            return fmt.Errorf("server shutdown: %w", err)
+        }
+        return nil
+    }
 }
 ```

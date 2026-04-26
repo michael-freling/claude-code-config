@@ -1,209 +1,168 @@
 # gRPC Server Patterns
 
-Idiomatic Go gRPC server using `google.golang.org/grpc` with inline OpenTelemetry instrumentation.
-
-## Server bootstrap with interceptors
+## Service Implementation with Tracing
 
 ```go
-import (
-	"net"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-)
-
-func newGRPCServer(userSvc *user.Service) *grpc.Server {
-	srv := grpc.NewServer(
-		grpc.StatsHandler(otelgrpc.NewServerHandler()),
-		grpc.ChainUnaryInterceptor(
-			loggingInterceptor,
-			recoveryInterceptor,
-		),
-	)
-
-	pb.RegisterUserServiceServer(srv, &UserServer{userSvc: userSvc})
-	reflection.Register(srv)
-	return srv
-}
-
-func listenGRPC(srv *grpc.Server, addr string) error {
-	lis, err := net.Listen("tcp", addr)
-	if err != nil {
-		return fmt.Errorf("listen %s: %w", addr, err)
-	}
-	return srv.Serve(lis)
-}
-```
-
-## Service implementation with error mapping
-
-```go
-import (
-	"context"
-	"errors"
-	"log/slog"
-
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-)
-
 type UserServer struct {
-	pb.UnimplementedUserServiceServer
-	userSvc *user.Service
+    pb.UnimplementedUserServiceServer
+    userService UserService
+    logger      *slog.Logger
+}
+
+func NewUserServer(userService UserService, logger *slog.Logger) *UserServer {
+    return &UserServer{
+        userService: userService,
+        logger:      logger,
+    }
 }
 
 func (s *UserServer) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.GetUserResponse, error) {
-	ctx, span := otel.Tracer("grpc").Start(ctx, "GetUser")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user.id", req.GetUserId()))
+    ctx, span := otel.Tracer("grpc").Start(ctx, "GetUser")
+    defer span.End()
 
-	if req.GetUserId() == 0 {
-		return nil, status.Error(codes.InvalidArgument, "user_id is required")
-	}
+    if req.GetUserId() == 0 {
+        return nil, status.Error(codes.InvalidArgument, "user_id is required")
+    }
 
-	u, err := s.userSvc.FindByID(ctx, req.GetUserId())
-	if err != nil {
-		return nil, s.mapError(ctx, span, err)
-	}
+    user, err := s.userService.GetByID(ctx, req.GetUserId())
+    if err != nil {
+        if errors.Is(err, ErrNotFound) {
+            return nil, status.Errorf(codes.NotFound, "user %d not found", req.GetUserId())
+        }
+        span.RecordError(err)
+        s.logger.ErrorContext(ctx, "get user", "user_id", req.GetUserId(), "error", err)
+        return nil, status.Error(codes.Internal, "internal error")
+    }
 
-	return &pb.GetUserResponse{
-		User: &pb.User{
-			Id:    u.ID,
-			Name:  u.Name,
-			Email: u.Email,
-		},
-	}, nil
-}
-
-func (s *UserServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*pb.CreateUserResponse, error) {
-	ctx, span := otel.Tracer("grpc").Start(ctx, "CreateUser")
-	defer span.End()
-
-	if req.GetName() == "" {
-		return nil, status.Error(codes.InvalidArgument, "name is required")
-	}
-	if req.GetEmail() == "" {
-		return nil, status.Error(codes.InvalidArgument, "email is required")
-	}
-
-	u, err := s.userSvc.Create(ctx, user.CreateParams{
-		Name:  req.GetName(),
-		Email: req.GetEmail(),
-	})
-	if err != nil {
-		return nil, s.mapError(ctx, span, err)
-	}
-
-	return &pb.CreateUserResponse{
-		User: &pb.User{Id: u.ID, Name: u.Name, Email: u.Email},
-	}, nil
+    return &pb.GetUserResponse{
+        User: toProtoUser(user),
+    }, nil
 }
 ```
 
-## Error mapping — domain errors to gRPC status codes
+## Error Mapping Helper
 
 ```go
-func (s *UserServer) mapError(ctx context.Context, span trace.Span, err error) error {
-	var validationErr *user.ValidationError
-	switch {
-	case errors.Is(err, user.ErrNotFound):
-		return status.Error(codes.NotFound, "user not found")
-	case errors.Is(err, user.ErrAlreadyExists):
-		return status.Error(codes.AlreadyExists, "user already exists")
-	case errors.As(err, &validationErr):
-		return status.Error(codes.InvalidArgument, validationErr.Error())
-	default:
-		span.RecordError(err)
-		span.SetStatus(otelcodes.Error, err.Error())
-		slog.ErrorContext(ctx, "internal error", "error", err)
-		return status.Error(codes.Internal, "internal error")
-	}
+func domainToGRPCError(err error) error {
+    switch {
+    case errors.Is(err, ErrNotFound):
+        return status.Error(codes.NotFound, err.Error())
+    case errors.Is(err, ErrInvalidInput):
+        return status.Error(codes.InvalidArgument, err.Error())
+    case errors.Is(err, ErrConflict):
+        return status.Error(codes.AlreadyExists, err.Error())
+    case errors.Is(err, ErrUnauthorized):
+        return status.Error(codes.Unauthenticated, err.Error())
+    default:
+        return status.Error(codes.Internal, "internal error")
+    }
 }
 ```
 
-## Logging interceptor
+## Unary Interceptor for Logging and Metrics
 
 ```go
-import (
-	"context"
-	"log/slog"
-	"time"
+func LoggingInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
+    return func(
+        ctx context.Context,
+        req any,
+        info *grpc.UnaryServerInfo,
+        handler grpc.UnaryHandler,
+    ) (any, error) {
+        start := time.Now()
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/status"
-)
+        resp, err := handler(ctx, req)
 
-func loggingInterceptor(
-	ctx context.Context,
-	req any,
-	info *grpc.UnaryServerInfo,
-	handler grpc.UnaryHandler,
-) (any, error) {
-	start := time.Now()
-	resp, err := handler(ctx, req)
-	duration := time.Since(start)
+        duration := time.Since(start)
+        code := status.Code(err)
 
-	st, _ := status.FromError(err)
-	slog.InfoContext(ctx, "grpc request",
-		"method", info.FullMethod,
-		"code", st.Code().String(),
-		"duration_ms", duration.Milliseconds(),
-	)
-	return resp, err
+        logger.InfoContext(ctx, "grpc request",
+            "method", info.FullMethod,
+            "code", code.String(),
+            "duration_ms", duration.Milliseconds(),
+        )
+
+        return resp, err
+    }
 }
 ```
 
-## Recovery interceptor
+## Server Setup with Interceptors
 
 ```go
-import (
-	"context"
-	"log/slog"
-	"runtime/debug"
+func NewGRPCServer(
+    userServer pb.UserServiceServer,
+    orderServer pb.OrderServiceServer,
+    logger *slog.Logger,
+    tp trace.TracerProvider,
+) *grpc.Server {
+    server := grpc.NewServer(
+        grpc.StatsHandler(otelgrpc.NewServerHandler(
+            otelgrpc.WithTracerProvider(tp),
+        )),
+        grpc.ChainUnaryInterceptor(
+            LoggingInterceptor(logger),
+        ),
+    )
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-)
+    pb.RegisterUserServiceServer(server, userServer)
+    pb.RegisterOrderServiceServer(server, orderServer)
 
-func recoveryInterceptor(
-	ctx context.Context,
-	req any,
-	info *grpc.UnaryServerInfo,
-	handler grpc.UnaryHandler,
-) (resp any, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			slog.ErrorContext(ctx, "panic recovered",
-				"method", info.FullMethod,
-				"panic", r,
-				"stack", string(debug.Stack()),
-			)
-			err = status.Error(codes.Internal, "internal error")
-		}
-	}()
-	return handler(ctx, req)
+    return server
 }
 ```
 
-## Graceful shutdown
+## Server-Side Streaming
 
 ```go
-func shutdownGRPC(srv *grpc.Server) {
-	stopped := make(chan struct{})
-	go func() {
-		srv.GracefulStop()
-		close(stopped)
-	}()
+func (s *UserServer) ListUsers(req *pb.ListUsersRequest, stream pb.UserService_ListUsersServer) error {
+    ctx, span := otel.Tracer("grpc").Start(stream.Context(), "ListUsers")
+    defer span.End()
 
-	select {
-	case <-stopped:
-	case <-time.After(30 * time.Second):
-		srv.Stop()
-	}
+    cursor := ""
+    for {
+        users, nextCursor, err := s.userService.List(ctx, req.GetPageSize(), cursor)
+        if err != nil {
+            span.RecordError(err)
+            return status.Error(codes.Internal, "internal error")
+        }
+
+        for _, user := range users {
+            if err := stream.Send(&pb.ListUsersResponse{User: toProtoUser(user)}); err != nil {
+                return fmt.Errorf("send user: %w", err)
+            }
+        }
+
+        if nextCursor == "" {
+            break
+        }
+        cursor = nextCursor
+    }
+
+    return nil
+}
+```
+
+## Graceful Shutdown
+
+```go
+func RunGRPC(ctx context.Context, server *grpc.Server, addr string) error {
+    lis, err := net.Listen("tcp", addr)
+    if err != nil {
+        return fmt.Errorf("listen %s: %w", addr, err)
+    }
+
+    errCh := make(chan error, 1)
+    go func() {
+        errCh <- server.Serve(lis)
+    }()
+
+    select {
+    case err := <-errCh:
+        return fmt.Errorf("serve: %w", err)
+    case <-ctx.Done():
+        server.GracefulStop()
+        return nil
+    }
 }
 ```

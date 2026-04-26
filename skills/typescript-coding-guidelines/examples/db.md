@@ -1,268 +1,99 @@
-# Database (Prisma + OpenTelemetry)
+# Database Patterns
 
-## Connection Pool Configuration
-
-Configure the connection pool via the datasource URL:
-
-```
-DATABASE_URL="postgresql://user:pass@host:5432/mydb?connection_limit=20&pool_timeout=10"
-```
-
-Singleton PrismaClient to avoid multiple instances during Next.js hot reloads:
+## Prisma Client Setup with Connection Pool
 
 ```typescript
 import { PrismaClient } from "@prisma/client";
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+const prisma = new PrismaClient({
+  datasourceUrl: process.env.DATABASE_URL,
+  log: process.env.LOG_LEVEL === "debug" ? ["query"] : [],
+});
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log:
-      process.env.NODE_ENV === "development"
-        ? ["query", "warn", "error"]
-        : ["error"],
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+export { prisma };
 ```
 
-## One Transaction per Request for Multi-Table Writes
+## Repository with Interface
 
 ```typescript
-import { PrismaClient } from "@prisma/client";
-import { trace, SpanStatusCode } from "@opentelemetry/api";
-
-const tracer = trace.getTracer("order-service");
-
-interface Order {
-  id: string;
-  customerId: string;
-  items: Array<{ productId: string; quantity: number; unitPrice: number }>;
+interface UserRepository {
+  getById(id: string): Promise<User | null>;
+  create(data: CreateUserInput): Promise<User>;
+  listByIds(ids: string[]): Promise<User[]>;
 }
 
-async function placeOrder(prisma: PrismaClient, order: Order): Promise<void> {
-  return tracer.startActiveSpan("placeOrder", async (span) => {
-    span.setAttribute("order.id", order.id);
-    span.setAttribute("order.item_count", order.items.length);
+class PrismaUserRepository implements UserRepository {
+  constructor(private readonly prisma: PrismaClient) {}
 
-    try {
-      await prisma.$transaction(async (tx) => {
-        await tx.order.create({
-          data: {
-            id: order.id,
-            customerId: order.customerId,
-            items: {
-              createMany: {
-                data: order.items.map((item) => ({
-                  productId: item.productId,
-                  quantity: item.quantity,
-                  unitPrice: item.unitPrice,
-                })),
-              },
-            },
-          },
-        });
+  async getById(id: string): Promise<User | null> {
+    return tracer.startActiveSpan("UserRepository.getById", async (span) => {
+      try {
+        span.setAttribute("user.id", id);
+        return await this.prisma.user.findUnique({ where: { id } });
+      } finally {
+        span.end();
+      }
+    });
+  }
 
-        for (const item of order.items) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { decrement: item.quantity } },
-          });
+  async create(data: CreateUserInput): Promise<User> {
+    return tracer.startActiveSpan("UserRepository.create", async (span) => {
+      try {
+        return await this.prisma.user.create({ data });
+      } catch (err) {
+        span.recordException(err instanceof Error ? err : new Error(String(err)));
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+          throw new ConflictError(`user with email ${data.email} already exists`);
         }
-      });
-    } catch (err) {
-      span.recordException(err as Error);
-      span.setStatus({ code: SpanStatusCode.ERROR });
-      throw new Error(`place order ${order.id}`, { cause: err });
-    } finally {
-      span.end();
-    }
-  });
+        throw err;
+      } finally {
+        span.end();
+      }
+    });
+  }
+
+  async listByIds(ids: string[]): Promise<User[]> {
+    if (ids.length === 0) return [];
+    return this.prisma.user.findMany({ where: { id: { in: ids } } });
+  }
 }
 ```
 
-## Batch Queries
-
-### Batch Create with skipDuplicates
+## Transaction — One Per Request
 
 ```typescript
-import { PrismaClient } from "@prisma/client";
-import { trace, SpanStatusCode } from "@opentelemetry/api";
-
-const tracer = trace.getTracer("product-service");
-
-interface ProductTag {
-  productId: string;
-  tag: string;
-}
-
-async function createProductTags(
-  prisma: PrismaClient,
-  tags: ProductTag[],
-): Promise<number> {
-  return tracer.startActiveSpan("createProductTags", async (span) => {
-    span.setAttribute("batch.size", tags.length);
-
+async function placeOrder(input: PlaceOrderInput): Promise<Order> {
+  return tracer.startActiveSpan("placeOrder", async (span) => {
     try {
-      const result = await prisma.productTag.createMany({
-        data: tags,
-        skipDuplicates: true,
-      });
-
-      span.setAttribute("batch.created_count", result.count);
-      return result.count;
-    } catch (err) {
-      span.recordException(err as Error);
-      span.setStatus({ code: SpanStatusCode.ERROR });
-      throw new Error("create product tags", { cause: err });
-    } finally {
-      span.end();
-    }
-  });
-}
-```
-
-### Batch Read with `in`
-
-```typescript
-async function getProductsByIds(
-  prisma: PrismaClient,
-  ids: string[],
-): Promise<Product[]> {
-  return tracer.startActiveSpan("getProductsByIds", async (span) => {
-    span.setAttribute("batch.size", ids.length);
-
-    try {
-      const products = await prisma.product.findMany({
-        where: { id: { in: ids } },
-      });
-
-      span.setAttribute("batch.found_count", products.length);
-      return products;
-    } catch (err) {
-      span.recordException(err as Error);
-      span.setStatus({ code: SpanStatusCode.ERROR });
-      throw new Error("get products by IDs", { cause: err });
-    } finally {
-      span.end();
-    }
-  });
-}
-```
-
-## Raw SQL with Parameterized Queries
-
-Use `Prisma.sql` tagged templates for queries that Prisma ORM cannot express (window functions, CTEs, complex aggregations). Always parameterize -- never concatenate strings.
-
-```typescript
-import { PrismaClient, Prisma } from "@prisma/client";
-import { trace, SpanStatusCode } from "@opentelemetry/api";
-
-const tracer = trace.getTracer("analytics-service");
-
-interface RankedProduct {
-  id: string;
-  name: string;
-  categoryId: string;
-  totalSales: number;
-  rankInCategory: number;
-}
-
-async function getTopProductsByCategory(
-  prisma: PrismaClient,
-  categoryIds: string[],
-  limit: number,
-): Promise<RankedProduct[]> {
-  return tracer.startActiveSpan("getTopProductsByCategory", async (span) => {
-    span.setAttribute("category_count", categoryIds.length);
-    span.setAttribute("limit", limit);
-
-    try {
-      const results = await prisma.$queryRaw<RankedProduct[]>(Prisma.sql`
-        WITH ranked AS (
-          SELECT
-            p.id,
-            p.name,
-            p.category_id AS "categoryId",
-            COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS "totalSales",
-            ROW_NUMBER() OVER (
-              PARTITION BY p.category_id
-              ORDER BY COALESCE(SUM(oi.quantity * oi.unit_price), 0) DESC
-            ) AS "rankInCategory"
-          FROM product p
-          LEFT JOIN order_item oi ON oi.product_id = p.id
-          WHERE p.category_id IN (${Prisma.join(categoryIds)})
-          GROUP BY p.id, p.name, p.category_id
-        )
-        SELECT * FROM ranked
-        WHERE "rankInCategory" <= ${limit}
-        ORDER BY "categoryId", "rankInCategory"
-      `);
-
-      span.setAttribute("result_count", results.length);
-      return results;
-    } catch (err) {
-      span.recordException(err as Error);
-      span.setStatus({ code: SpanStatusCode.ERROR });
-      throw new Error("get top products by category", { cause: err });
-    } finally {
-      span.end();
-    }
-  });
-}
-```
-
-## Injecting Time Values from Application Code
-
-Pass `new Date()` from application code instead of relying on database functions like `NOW()`. This makes tests deterministic by injecting a `Clock` interface.
-
-```typescript
-import { PrismaClient } from "@prisma/client";
-import { trace, SpanStatusCode } from "@opentelemetry/api";
-
-const tracer = trace.getTracer("subscription-service");
-
-interface Clock {
-  now(): Date;
-}
-
-const systemClock: Clock = { now: () => new Date() };
-
-async function cancelSubscription(
-  prisma: PrismaClient,
-  subscriptionId: string,
-  clock: Clock = systemClock,
-): Promise<void> {
-  return tracer.startActiveSpan("cancelSubscription", async (span) => {
-    span.setAttribute("subscription.id", subscriptionId);
-
-    try {
-      const cancelledAt = clock.now();
-
-      await prisma.$transaction(async (tx) => {
-        await tx.subscription.update({
-          where: { id: subscriptionId },
+      return await prisma.$transaction(async (tx) => {
+        const order = await tx.order.create({
           data: {
-            status: "CANCELLED",
-            cancelledAt,
+            userId: input.userId,
+            total: input.total,
+            status: "pending",
+            createdAt: input.now,
           },
         });
 
-        await tx.subscriptionEvent.create({
-          data: {
-            subscriptionId,
-            type: "CANCELLED",
-            occurredAt: cancelledAt,
-          },
+        await tx.orderItem.createMany({
+          data: input.items.map((item) => ({
+            orderId: order.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price,
+          })),
         });
+
+        await tx.inventory.updateMany({
+          where: { productId: { in: input.items.map((i) => i.productId) } },
+          data: { stock: { decrement: 1 } },
+        });
+
+        return order;
       });
     } catch (err) {
-      span.recordException(err as Error);
-      span.setStatus({ code: SpanStatusCode.ERROR });
-      throw new Error(`cancel subscription ${subscriptionId}`, { cause: err });
+      span.recordException(err instanceof Error ? err : new Error(String(err)));
+      throw new Error(`place order for user ${input.userId}`, { cause: err });
     } finally {
       span.end();
     }
@@ -270,20 +101,96 @@ async function cancelSubscription(
 }
 ```
 
-### Testing with a Fake Clock
+## Drizzle Alternative — Schema and Query
 
 ```typescript
-const fakeClock: Clock = {
-  now: () => new Date("2025-06-15T10:00:00Z"),
-};
+import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
 
-test("cancelSubscription sets cancelledAt from clock", async () => {
-  await cancelSubscription(prisma, subscriptionId, fakeClock);
+export const users = pgTable("users", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  createdAt: timestamp("created_at").notNull(),
+});
 
-  const subscription = await prisma.subscription.findUniqueOrThrow({
-    where: { id: subscriptionId },
+export const orders = pgTable("orders", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  total: integer("total").notNull(),
+  status: text("status").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+});
+```
+
+```typescript
+import { db } from "@/lib/db";
+import { eq } from "drizzle-orm";
+
+async function getUserById(id: string): Promise<User | undefined> {
+  return tracer.startActiveSpan("getUserById", async (span) => {
+    try {
+      span.setAttribute("user.id", id);
+      const rows = await db.select().from(users).where(eq(users.id, id)).limit(1);
+      return rows[0];
+    } finally {
+      span.end();
+    }
   });
-  expect(subscription.cancelledAt).toEqual(new Date("2025-06-15T10:00:00Z"));
-  expect(subscription.status).toBe("CANCELLED");
+}
+```
+
+## Drizzle Transaction
+
+```typescript
+async function placeOrder(input: PlaceOrderInput): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.insert(orders).values({
+      id: input.orderId,
+      userId: input.userId,
+      total: input.total,
+      status: "pending",
+      createdAt: input.now,
+    });
+
+    await tx.insert(orderItems).values(
+      input.items.map((item) => ({
+        orderId: input.orderId,
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+    );
+  });
+}
+```
+
+## Testing with testcontainers
+
+```typescript
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { PrismaClient } from "@prisma/client";
+
+let container: StartedPostgreSqlContainer;
+let prisma: PrismaClient;
+
+beforeAll(async () => {
+  container = await new PostgreSqlContainer("postgres:16-alpine").start();
+  prisma = new PrismaClient({
+    datasourceUrl: container.getConnectionUri(),
+  });
+  await prisma.$executeRawUnsafe(
+    await fs.readFile("prisma/migrations/init/migration.sql", "utf-8"),
+  );
+}, 30_000);
+
+afterAll(async () => {
+  await prisma.$disconnect();
+  await container.stop();
+});
+
+beforeEach(async () => {
+  await prisma.user.deleteMany();
 });
 ```

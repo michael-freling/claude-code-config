@@ -1,269 +1,209 @@
 # HTTP Client Patterns
 
-Idiomatic TypeScript HTTP client using `fetch` with inline OpenTelemetry instrumentation.
-
-## Client class with base URL, timeout, and AbortSignal composition
+## Client with Options and Tracing
 
 ```typescript
-import { trace, SpanStatusCode } from "@opentelemetry/api";
-import { z } from "zod";
+import { tracer } from "@/lib/telemetry";
 
-const tracer = trace.getTracer("vendor-client");
+interface ClientOptions {
+  timeout?: number;
+  maxRetries?: number;
+}
 
-class VendorClient {
-  constructor(
-    private readonly baseURL: string,
-    private readonly timeoutMs: number = 10_000,
-  ) {}
+class ApiClient {
+  private readonly baseUrl: string;
+  private readonly timeout: number;
+  private readonly maxRetries: number;
 
-  private createAbortSignal(callerSignal?: AbortSignal): AbortSignal {
-    const timeout = AbortSignal.timeout(this.timeoutMs);
-    return callerSignal ? AbortSignal.any([callerSignal, timeout]) : timeout;
+  constructor(baseUrl: string, options?: ClientOptions) {
+    this.baseUrl = baseUrl;
+    this.timeout = options?.timeout ?? 30_000;
+    this.maxRetries = options?.maxRetries ?? 3;
+  }
+
+  async get<T>(path: string, signal?: AbortSignal): Promise<T> {
+    return this.request("GET", path, undefined, signal);
+  }
+
+  async post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+    return this.request("POST", path, body, signal);
+  }
+
+  private async request<T>(
+    method: string,
+    path: string,
+    body: unknown,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    return tracer.startActiveSpan(`${method} ${path}`, async (span) => {
+      try {
+        const response = await this.fetchWithRetry(
+          `${this.baseUrl}${path}`,
+          {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: body ? JSON.stringify(body) : undefined,
+            signal: signal ?? AbortSignal.timeout(this.timeout),
+          },
+        );
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new ApiError(
+            `${method} ${path}: status ${response.status}`,
+            response.status,
+            text,
+          );
+        }
+
+        return (await response.json()) as T;
+      } catch (err) {
+        span.recordException(err instanceof Error ? err : new Error(String(err)));
+        throw err;
+      } finally {
+        span.end();
+      }
+    });
   }
 }
 ```
 
-## GET request with typed response and OTel span
+## Custom Error Class
 
 ```typescript
-const UserSchema = z.object({
+class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode: number,
+    readonly responseBody: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+```
+
+## Retry with Exponential Backoff
+
+```typescript
+private async fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt < this.maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, init);
+      if (!isRetryableStatus(response.status)) {
+        return response;
+      }
+      lastError = new Error(`status ${response.status}`);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+
+    await sleep(backoffDelay(attempt));
+  }
+
+  throw new Error(`max retries exceeded for ${url}`, { cause: lastError });
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || status === 502 || status === 503 || status === 504;
+}
+
+function backoffDelay(attempt: number): number {
+  return Math.min(2 ** attempt * 100, 10_000);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+```
+
+## Concurrent Fan-Out Requests
+
+```typescript
+async function getProducts(ids: string[]): Promise<Product[]> {
+  return tracer.startActiveSpan("getProducts", async (span) => {
+    try {
+      span.setAttribute("product.count", ids.length);
+      return await Promise.all(ids.map((id) => client.get<Product>(`/products/${id}`)));
+    } finally {
+      span.end();
+    }
+  });
+}
+```
+
+## Typed Response Validation with Zod
+
+```typescript
+const productResponseSchema = z.object({
   id: z.string(),
   name: z.string(),
-  email: z.string().email(),
+  price: z.number(),
+  inStock: z.boolean(),
 });
-type User = z.infer<typeof UserSchema>;
 
-class VendorClient {
-  // ... constructor and createAbortSignal from above
+type ProductResponse = z.infer<typeof productResponseSchema>;
 
-  async getUser(
-    userId: string,
-    options?: { signal?: AbortSignal },
-  ): Promise<User> {
-    return tracer.startActiveSpan("VendorClient.getUser", async (span) => {
-      span.setAttribute("user.id", userId);
-      try {
-        const response = await fetch(`${this.baseURL}/users/${userId}`, {
-          method: "GET",
-          headers: { Accept: "application/json" },
-          signal: this.createAbortSignal(options?.signal),
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            `GET /users/${userId} failed with status ${response.status}`,
-          );
-        }
-
-        const body = await response.json();
-        const user = UserSchema.parse(body);
-
-        span.setStatus({ code: SpanStatusCode.OK });
-        return user;
-      } catch (error) {
-        span.setStatus({
-          code: SpanStatusCode.ERROR,
-          message: error instanceof Error ? error.message : String(error),
-        });
-        span.recordException(
-          error instanceof Error ? error : new Error(String(error)),
-        );
-        throw new Error(`get user ${userId}: ${error}`, { cause: error });
-      } finally {
-        span.end();
-      }
-    });
-  }
+async function getProduct(id: string): Promise<ProductResponse> {
+  const data = await client.get(`/products/${id}`);
+  return productResponseSchema.parse(data);
 }
 ```
 
-## POST request with request body and OTel span
+## Testing with msw
 
 ```typescript
-const CreateOrderResponseSchema = z.object({
-  orderId: z.string(),
-  status: z.enum(["pending", "confirmed"]),
-  createdAt: z.string().datetime(),
-});
-type CreateOrderResponse = z.infer<typeof CreateOrderResponseSchema>;
+import { http, HttpResponse } from "msw";
+import { setupServer } from "msw/node";
 
-interface CreateOrderRequest {
-  userId: string;
-  items: Array<{ productId: string; quantity: number }>;
-}
+const server = setupServer();
 
-class VendorClient {
-  // ... constructor and createAbortSignal from above
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
-  async createOrder(
-    request: CreateOrderRequest,
-    options?: { signal?: AbortSignal },
-  ): Promise<CreateOrderResponse> {
-    return tracer.startActiveSpan("VendorClient.createOrder", async (span) => {
-      span.setAttribute("user.id", request.userId);
-      span.setAttribute("order.item_count", request.items.length);
-      try {
-        const response = await fetch(`${this.baseURL}/orders`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify(request),
-          signal: this.createAbortSignal(options?.signal),
-        });
+describe("ApiClient", () => {
+  const client = new ApiClient("http://api.test");
 
-        if (!response.ok) {
-          throw new Error(
-            `POST /orders failed with status ${response.status}`,
-          );
-        }
-
-        const body = await response.json();
-        const order = CreateOrderResponseSchema.parse(body);
-
-        span.setAttribute("order.id", order.orderId);
-        span.setStatus({ code: SpanStatusCode.OK });
-        return order;
-      } catch (error) {
-        span.setStatus({
-          code: SpanStatusCode.ERROR,
-          message: error instanceof Error ? error.message : String(error),
-        });
-        span.recordException(
-          error instanceof Error ? error : new Error(String(error)),
-        );
-        throw new Error(
-          `create order for user ${request.userId}: ${error}`,
-          { cause: error },
-        );
-      } finally {
-        span.end();
-      }
-    });
-  }
-}
-```
-
-## Retry with exponential backoff
-
-Use `p-retry` for transient failures (429, 5xx, network errors). Wrap the
-retryable call inside the OTel span so the span captures the final outcome.
-
-```typescript
-import pRetry, { AbortError } from "p-retry";
-
-class VendorClient {
-  // ... constructor and createAbortSignal from above
-
-  async getUserWithRetry(
-    userId: string,
-    options?: { signal?: AbortSignal; maxRetries?: number },
-  ): Promise<User> {
-    return tracer.startActiveSpan(
-      "VendorClient.getUserWithRetry",
-      async (span) => {
-        span.setAttribute("user.id", userId);
-        try {
-          const user = await pRetry(
-            async () => {
-              const response = await fetch(
-                `${this.baseURL}/users/${userId}`,
-                {
-                  method: "GET",
-                  headers: { Accept: "application/json" },
-                  signal: this.createAbortSignal(options?.signal),
-                },
-              );
-
-              if (response.status === 429 || response.status >= 500) {
-                throw new Error(
-                  `GET /users/${userId} failed with status ${response.status}`,
-                );
-              }
-
-              if (!response.ok) {
-                // 4xx errors other than 429 are not transient; abort retry
-                throw new AbortError(
-                  `GET /users/${userId} failed with status ${response.status}`,
-                );
-              }
-
-              const body = await response.json();
-              return UserSchema.parse(body);
-            },
-            {
-              retries: options?.maxRetries ?? 3,
-              onFailedAttempt: (error) => {
-                span.addEvent("retry_attempt", {
-                  attempt: error.attemptNumber,
-                  retriesLeft: error.retriesLeft,
-                });
-              },
-            },
-          );
-
-          span.setStatus({ code: SpanStatusCode.OK });
-          return user;
-        } catch (error) {
-          span.setStatus({
-            code: SpanStatusCode.ERROR,
-            message: error instanceof Error ? error.message : String(error),
-          });
-          span.recordException(
-            error instanceof Error ? error : new Error(String(error)),
-          );
-          throw new Error(`get user with retry ${userId}: ${error}`, {
-            cause: error,
-          });
-        } finally {
-          span.end();
-        }
-      },
+  it("returns parsed product", async () => {
+    server.use(
+      http.get("http://api.test/products/p-1", () =>
+        HttpResponse.json({ id: "p-1", name: "Widget", price: 999, inStock: true }),
+      ),
     );
-  }
-}
-```
 
-## Caller-controlled cancellation
-
-The caller creates an `AbortController` and passes its signal. The client
-composes it with the timeout signal via `AbortSignal.any()`.
-
-```typescript
-async function fetchUserProfile(client: VendorClient): Promise<User> {
-  const controller = new AbortController();
-
-  // Cancel the request after an external event, e.g. user navigation
-  window.addEventListener("beforeunload", () => controller.abort(), {
-    once: true,
+    const product = await client.get<Product>("/products/p-1");
+    expect(product.name).toBe("Widget");
   });
 
-  // The client composes this signal with its own timeout
-  return client.getUser("user-123", { signal: controller.signal });
-}
-```
+  it("throws ApiError on 404", async () => {
+    server.use(
+      http.get("http://api.test/products/missing", () =>
+        HttpResponse.json({ error: "not found" }, { status: 404 }),
+      ),
+    );
 
-Programmatic cancellation from a parent operation:
+    await expect(client.get("/products/missing")).rejects.toThrow(ApiError);
+  });
 
-```typescript
-async function syncUsers(
-  client: VendorClient,
-  userIds: string[],
-): Promise<User[]> {
-  const controller = new AbortController();
+  it("retries on 503", async () => {
+    let callCount = 0;
+    server.use(
+      http.get("http://api.test/products/flaky", () => {
+        callCount++;
+        if (callCount < 3) {
+          return HttpResponse.json(null, { status: 503 });
+        }
+        return HttpResponse.json({ id: "flaky", name: "Flaky", price: 100, inStock: true });
+      }),
+    );
 
-  try {
-    const users: User[] = [];
-    for (const id of userIds) {
-      const user = await client.getUser(id, { signal: controller.signal });
-      users.push(user);
-    }
-    return users;
-  } catch (error) {
-    // Cancel any remaining in-flight requests
-    controller.abort();
-    throw new Error(`sync users: ${error}`, { cause: error });
-  }
-}
+    const product = await client.get<Product>("/products/flaky");
+    expect(product.name).toBe("Flaky");
+    expect(callCount).toBe(3);
+  });
+});
 ```
