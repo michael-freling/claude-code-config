@@ -65,6 +65,7 @@ skills/<language>-coding-guidelines/
 - Does each example file include OpenTelemetry instrumentation inline where applicable?
 - Are example files scoped to their application type?
 - Do example files complement the template without repeating general principles?
+- For frontend languages: does the SKILL.md include the Frontend Guidelines section?
 
 ## Coding Guidelines Template
 
@@ -203,6 +204,16 @@ Accept the minimum type or interface a function needs. This reduces coupling and
 - **OpenTelemetry** as the standard for metrics, logs, and traces — set up the SDK at bootstrap and add instrumentation as needed
 - **RED metrics** (Rate, Errors, Duration) for HTTP and gRPC servers at minimum
 - **Avoid high cardinality** in metric labels — TSDB backends handle high cardinality poorly
+
+### Frontend Guidelines
+
+Include this section in the SKILL.md only when the target language is used for frontend development (e.g., TypeScript, JavaScript). Rewrite with language-specific patterns.
+
+- **Mobile-first approach** — implement UI components starting from mobile layout, then add responsive breakpoints for larger screens
+- **Import assets from files** — never inline SVG, base64, or XML data in component code; import from separate files
+- **Minimize React hooks per component** — consolidate related `useEffect` hooks that depend on the same data source instead of creating separate effects for each field
+- **Use `useMemo` only with justification** — only when there is a real performance need (expensive computation or preventing unnecessary child re-renders)
+- **Verify UI changes visually** — after implementing or modifying UI components, take screenshots at key breakpoints (desktop, mobile) to check for layout issues (alignment, spacing, overflow, z-index)
 
 ## Example Output
 

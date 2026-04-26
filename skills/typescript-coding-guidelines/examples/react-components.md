@@ -47,6 +47,8 @@ function UserCard({ user, onSelect, children }: UserCardProps) {
 
 ## Custom Hook with Dependency Injection
 
+### Cancelled flag pattern
+
 ```tsx
 // Discriminated union for async state
 type AsyncState<T> =
@@ -95,8 +97,62 @@ function useFetchUsers(client: UserClient, query: string): AsyncState<User[]> {
 
   return state;
 }
+```
 
-// Usage — consumer provides the client, tests can substitute a fake
+### AbortController pattern
+
+Use when the underlying API supports cancellation via `AbortSignal`, so in-flight
+network requests are actually cancelled rather than just ignored on completion.
+
+```tsx
+interface UserClientWithAbort {
+  fetchUsers(query: string, signal: AbortSignal): Promise<User[]>;
+}
+
+function useFetchUsersWithAbort(
+  client: UserClientWithAbort,
+  query: string,
+): AsyncState<User[]> {
+  const [state, setState] = useState<AsyncState<User[]>>({ status: "idle" });
+
+  useEffect(() => {
+    if (!query) {
+      setState({ status: "idle" });
+      return;
+    }
+
+    const controller = new AbortController();
+    setState({ status: "loading" });
+
+    client
+      .fetchUsers(query, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) {
+          setState({ status: "success", data });
+        }
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return; // expected cancellation, not an error
+        }
+        setState({
+          status: "error",
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [client, query]);
+
+  return state;
+}
+```
+
+### Usage — consumer provides the client, tests can substitute a fake
+
+```tsx
 function UserSearch({ client }: { client: UserClient }) {
   const [query, setQuery] = useState("");
   const state = useFetchUsers(client, query);
