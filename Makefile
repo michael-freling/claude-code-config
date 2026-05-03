@@ -11,8 +11,7 @@ install: claude-install gemini-install
 update: claude-update gemini-install
 
 claude-update:
-	@CLAUDECODE= claude plugin uninstall $(PLUGIN_NAME)@$(MARKETPLACE_NAME) || true
-	@CLAUDECODE= claude plugin install $(PLUGIN_NAME)@$(MARKETPLACE_NAME) --scope user
+	@CLAUDECODE= claude plugin update $(PLUGIN_NAME)@$(MARKETPLACE_NAME)
 
 claude-install:
 	@CLAUDECODE= claude plugin marketplace add $(PROJECT_DIR)
