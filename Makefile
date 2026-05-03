@@ -1,4 +1,4 @@
-.PHONY: install uninstall gemini-install
+.PHONY: install update uninstall gemini-install
 
 PLUGIN_NAME := michael-config
 MARKETPLACE_NAME := michael-freling
@@ -7,6 +7,12 @@ GEMINI_DIR := $(HOME)/.gemini
 SKILL_DIRS := $(wildcard skills/*/)
 
 install: claude-install gemini-install
+
+update: claude-update gemini-install
+
+claude-update:
+	@CLAUDECODE= claude plugin uninstall $(PLUGIN_NAME)@$(MARKETPLACE_NAME) || true
+	@CLAUDECODE= claude plugin install $(PLUGIN_NAME)@$(MARKETPLACE_NAME) --scope user
 
 claude-install:
 	@CLAUDECODE= claude plugin marketplace add $(PROJECT_DIR)
