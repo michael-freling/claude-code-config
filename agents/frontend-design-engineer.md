@@ -48,13 +48,14 @@ Follow this process for every frontend design engagement:
 - [ ] Review data fetching patterns
 - [ ] Identify routing patterns
 - [ ] Note testing conventions
+- [ ] Read all `.stories.tsx` files to catalog documented components and their variants
 
 ### Phase 2: Reusability Analysis
 
 **Objectives:**
-- List components that can be reused as-is
-- Identify components needing extension
-- Note components requiring creation
+- List components documented in Storybook stories that can be reused as-is
+- Identify components needing extension (with story updates)
+- Note components requiring creation (must include new `.stories.tsx` files)
 
 **Output:**
 - Reusable components list with file paths

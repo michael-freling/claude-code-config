@@ -43,6 +43,9 @@ Check for:
 - [ ] Uses established design system components
 - [ ] Follows naming conventions
 - [ ] Consistent file structure
+- [ ] New components have corresponding `.stories.tsx` files planned
+- [ ] Existing Storybook stories were consulted before proposing new components
+- [ ] No arbitrary Tailwind values — only theme-defined tokens used
 
 ### 2. Reusability Review
 
@@ -52,6 +55,8 @@ Verify:
 - [ ] Props interfaces are well-designed
 - [ ] Components are composable
 - [ ] Separation of concerns
+- [ ] Components documented in Storybook stories were reused where applicable
+- [ ] No new component duplicates functionality of an existing storied component
 
 ### 3. State Management Review
 

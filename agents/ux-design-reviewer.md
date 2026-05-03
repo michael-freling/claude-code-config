@@ -59,6 +59,9 @@ Check for:
 - [ ] Consistent spacing and layout
 - [ ] Consistent interaction patterns
 - [ ] Consistent terminology
+- [ ] Components referenced in wireframes match components documented in Storybook stories
+- [ ] No new visual patterns that duplicate existing storied component variants
+- [ ] Color and spacing values align with the project's Tailwind theme tokens
 
 ### 4. Completeness Review
 
