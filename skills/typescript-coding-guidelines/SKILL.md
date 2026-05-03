@@ -301,3 +301,20 @@ Accept the minimum type a function needs — TypeScript's structural typing make
 - **Minimize hooks per component** — consolidate related `useEffect` calls that depend on the same data source into a single effect; extract complex hook logic into custom hooks
 - **`useMemo` only with justification** — only when profiling shows an expensive computation or to prevent unnecessary child re-renders via referential equality; the default is no memoization
 - **Verify UI changes visually** — after modifying components, check layouts at mobile (375px), tablet (768px), and desktop (1280px) breakpoints for alignment, spacing, overflow, and z-index issues
+- **Storybook story co-location** — every React component must have a `.stories.tsx` file next to it (`Button.stories.tsx` beside `Button.tsx`); when creating or modifying a component, always create or update the corresponding story with all variants; use `Meta<typeof Component>` and `StoryObj` types from `@storybook/react`; add `tags: ['autodocs']` to the meta for automatic prop documentation:
+  ```typescript
+  import type { Meta, StoryObj } from '@storybook/react';
+  import { Button } from './Button';
+
+  const meta: Meta<typeof Button> = {
+    component: Button,
+    tags: ['autodocs'],
+  };
+  export default meta;
+  type Story = StoryObj<typeof Button>;
+
+  export const Primary: Story = { args: { variant: 'primary', children: 'Click me' } };
+  export const Disabled: Story = { args: { variant: 'primary', disabled: true, children: 'Submit' } };
+  ```
+- **Read existing stories before creating components** — before building any new UI component, read existing `.stories.tsx` files to understand what components and variants already exist; reuse existing components instead of creating new ones with similar functionality
+- **No arbitrary Tailwind values** — never use arbitrary value syntax like `p-[13px]`, `bg-[#abc123]`, or `text-[17px]`; only use values defined in the Tailwind theme config; use CSS variables for theme-aware tokens (`bg-primary` mapped to `var(--color-primary)`) to support light/dark themes without code changes

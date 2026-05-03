@@ -197,3 +197,33 @@ describe("UserCard", () => {
   });
 });
 ```
+
+## Storybook Story Co-location
+
+```typescript
+// UserCard.stories.tsx — co-located next to UserCard.tsx
+import type { Meta, StoryObj } from "@storybook/react";
+import { UserCard } from "./UserCard";
+
+const meta: Meta<typeof UserCard> = {
+  component: UserCard,
+  tags: ["autodocs"],
+};
+export default meta;
+
+type Story = StoryObj<typeof UserCard>;
+
+export const Default: Story = {
+  args: {
+    user: { id: "user-1", name: "Alice", email: "alice@example.com" },
+    onEdit: () => {},
+  },
+};
+
+export const LongName: Story = {
+  args: {
+    user: { id: "user-2", name: "Alexander Bartholomew Charleston", email: "abc@example.com" },
+    onEdit: () => {},
+  },
+};
+```

@@ -257,6 +257,9 @@ Include this section in the SKILL.md only when the target language is used for f
 - **Minimize React hooks per component** — consolidate related `useEffect` hooks that depend on the same data source instead of creating separate effects for each field
 - **Use `useMemo` only with justification** — only when there is a real performance need (expensive computation or preventing unnecessary child re-renders)
 - **Verify UI changes visually** — after implementing or modifying UI components, take screenshots at key breakpoints (desktop, mobile) to check for layout issues (alignment, spacing, overflow, z-index)
+- **Storybook story co-location** — every React component must have a `.stories.tsx` file next to it (e.g., `Button.stories.tsx` beside `Button.tsx`); when creating or modifying a component, always create or update the corresponding story file with all variants (default, disabled, loading, error, sizes); add `tags: ['autodocs']` to story meta for automatic prop documentation
+- **Read existing stories before creating components** — before designing or building any new UI component, read existing `.stories.tsx` files to understand what components and variants already exist; reuse existing components instead of creating new ones with similar functionality
+- **No arbitrary Tailwind values** — never use arbitrary value syntax like `p-[13px]`, `bg-[#abc123]`, or `text-[17px]`; only use values defined in the Tailwind theme config; use CSS variables for theme-aware tokens (e.g., `bg-primary` mapped to `var(--color-primary)`) to support light/dark themes
 
 ## Example Output
 
