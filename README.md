@@ -51,7 +51,8 @@ Reusable guidance for specific tasks:
 | `pr-feedback` | Address PR review feedback |
 | `github-pr-link` | Link issues to PRs with closing keywords |
 | `github-sub-issues` | Create parent-child issue relationships |
-| `git-branch-pr` | Create a git branch and GitHub PR (only on explicit request) |
+| `git-branch` | Create a git branch (only on explicit request) |
+| `github-pr` | Create a GitHub PR (only on explicit request) |
 
 ### Rules
 
