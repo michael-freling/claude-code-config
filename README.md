@@ -5,8 +5,8 @@ Personal Claude Code configurations including commands, skills, rules, and agent
 ## Installation
 
 ```bash
-git clone https://github.com/michael-freling/claude-code-config.git
-cd claude-code-config
+git clone https://github.com/michael-freling/claude-code-plugins.git
+cd claude-code-plugins
 make install
 ```
 
