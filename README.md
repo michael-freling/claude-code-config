@@ -18,6 +18,25 @@ To uninstall:
 make uninstall
 ```
 
+## Repository Structure
+
+This repository is a Claude Code plugin marketplace. The marketplace manifest
+stays at the repo root, and the plugin itself lives under `plugins/michael-config/`:
+
+```
+.claude-plugin/
+└── marketplace.json          # marketplace manifest (repo root)
+plugins/
+└── michael-config/
+    ├── .claude-plugin/
+    │   └── plugin.json        # plugin manifest
+    ├── agents/
+    ├── commands/
+    ├── skills/
+    ├── rules/
+    └── templates/
+```
+
 ## What's Included
 
 ### Commands

@@ -3,8 +3,9 @@
 PLUGIN_NAME := michael-config
 MARKETPLACE_NAME := michael-freling
 PROJECT_DIR := $(shell pwd)
+PLUGIN_DIR := plugins/$(PLUGIN_NAME)
 GEMINI_DIR := $(HOME)/.gemini
-SKILL_DIRS := $(wildcard skills/*/)
+SKILL_DIRS := $(wildcard $(PLUGIN_DIR)/skills/*/)
 
 install: claude-install gemini-install
 
@@ -21,7 +22,8 @@ gemini-install:
 	@echo "Creating symlinks in $(GEMINI_DIR)..."
 	@mkdir -p $(GEMINI_DIR)/skills
 	@for d in $(SKILL_DIRS); do \
-		gtarget=$(GEMINI_DIR)/$$d; \
+		rel=$${d#$(PLUGIN_DIR)/}; \
+		gtarget=$(GEMINI_DIR)/$$rel; \
 		gtarget=$${gtarget%/}; \
 		if [ -L "$$gtarget" ]; then \
 			rm -f "$$gtarget"; \
@@ -37,7 +39,8 @@ uninstall:
 	@CLAUDECODE= claude plugin marketplace remove $(MARKETPLACE_NAME) || true
 	@echo "Removing Gemini symlinks..."
 	@for d in $(SKILL_DIRS); do \
-		gtarget=$(GEMINI_DIR)/$$d; \
+		rel=$${d#$(PLUGIN_DIR)/}; \
+		gtarget=$(GEMINI_DIR)/$$rel; \
 		gtarget=$${gtarget%/}; \
 		rm -f "$$gtarget"; \
 	done

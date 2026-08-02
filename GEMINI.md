@@ -4,7 +4,7 @@
 
 At the beginning of a session or when context needs refreshing, you must perform the **Rule Indexing** phase:
 
-1.  **Scan Headers**: Run `head -n 5 rules/*.md` (and `~/.claude/rules/*.md` if available) to inspect the YAML frontmatter of all rule files.
+1.  **Scan Headers**: Run `head -n 5 plugins/michael-config/rules/*.md` (and `~/.claude/rules/*.md` if available) to inspect the YAML frontmatter of all rule files.
 2.  **Categorize Rules**:
     *   **Global Rules**: Files *without* a `paths:` property.
         *   **Action**: Read these files immediately and add them to your persistent memory/context.
