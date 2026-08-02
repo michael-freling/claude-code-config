@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "michael-config",
-      "source": "./"
+      "source": "./plugins/michael-config"
     }
   ]
 }
