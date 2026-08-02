@@ -1,0 +1,5 @@
+# Nested worktree checkouts created by Claude Code sessions
+.claude/worktrees/
+
+# Machine-local Claude Code settings (not shared)
+.claude/settings.local.json
